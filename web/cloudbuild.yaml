@@ -1,0 +1,42 @@
+substitutions:
+  _BACKEND_URL: "http://localhost:8080"
+
+steps:
+  - id: build-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:$SHORT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:latest
+      - .
+
+  - id: push-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - health-fitness-web
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:$SHORT_SHA
+      - --region=us-central1
+      - --platform=managed
+      - --service-account=health-fitness-runtime@$PROJECT_ID.iam.gserviceaccount.com
+      - --allow-unauthenticated
+      - --port=8080
+      - --set-env-vars=BACKEND_BASE_URL=${_BACKEND_URL}
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:$SHORT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

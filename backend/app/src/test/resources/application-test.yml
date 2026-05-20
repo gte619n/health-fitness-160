@@ -1,0 +1,16 @@
+spring:
+  cloud:
+    gcp:
+      core:
+        enabled: false
+      firestore:
+        enabled: false
+      secretmanager:
+        enabled: false
+  autoconfigure:
+    exclude:
+      - com.google.cloud.spring.autoconfigure.core.GcpContextAutoConfiguration
+      - com.google.cloud.spring.autoconfigure.core.environment.StackdriverEnvironmentPostProcessor
+      - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreAutoConfiguration
+      - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreEmulatorAutoConfiguration
+      - com.google.cloud.spring.autoconfigure.secretmanager.GcpSecretManagerAutoConfiguration

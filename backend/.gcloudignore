@@ -1,0 +1,9 @@
+.gcloudignore
+.git/
+.gitignore
+.gradle/
+build/
+**/build/
+**/out/
+.idea/
+*.iml

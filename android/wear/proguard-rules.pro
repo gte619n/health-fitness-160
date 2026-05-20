@@ -1,0 +1,1 @@
+# Wear-specific ProGuard rules.

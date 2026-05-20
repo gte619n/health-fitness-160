@@ -1,0 +1,26 @@
+[versions]
+springBoot = "3.5.0"
+springDependencyManagement = "1.1.7"
+springCloudGcp = "6.1.0"
+firestore = "3.30.0"
+googleAuth = "1.30.0"
+googleApiClient = "2.7.0"
+junit = "5.11.0"
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-oauth2-client = { module = "org.springframework.boot:spring-boot-starter-oauth2-client" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-context = { module = "org.springframework:spring-context" }
+spring-cloud-gcp-starter = { module = "com.google.cloud:spring-cloud-gcp-starter", version.ref = "springCloudGcp" }
+spring-cloud-gcp-firestore = { module = "com.google.cloud:spring-cloud-gcp-starter-data-firestore", version.ref = "springCloudGcp" }
+google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "firestore" }
+google-auth-library = { module = "com.google.auth:google-auth-library-oauth2-http", version.ref = "googleAuth" }
+google-api-client = { module = "com.google.api-client:google-api-client", version.ref = "googleApiClient" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
