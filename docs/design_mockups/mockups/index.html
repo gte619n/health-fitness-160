@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health & Fitness — Design Mockups</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/instrument-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/index.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #F0EBE0; }
+  body {
+    font-family: 'Instrument Sans', 'Inter', -apple-system, system-ui, sans-serif;
+    color: #1F2419;
+    line-height: 1.5;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 60px 32px 80px; }
+  .preamble { margin-bottom: 56px; }
+  h1 { font-size: 32px; font-weight: 500; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #8A8770; text-transform: uppercase; letter-spacing: 0.08em; }
+  p { font-size: 15px; color: #4D4A3F; max-width: 640px; }
+  .section { margin-bottom: 48px; padding: 32px; background: #FFFFFF; border: 0.5px solid #E6DFCF; border-radius: 14px; }
+  .section h2 { font-size: 20px; font-weight: 500; margin: 0 0 4px; letter-spacing: -0.015em; display: flex; align-items: center; gap: 10px; }
+  .section h2::before { content: ''; display: inline-block; width: 3px; height: 16px; background: #5C7A2E; border-radius: 2px; }
+  .section-meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8A8770; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; padding-left: 13px; }
+  .section p { font-size: 14px; margin: 0 0 20px; padding-left: 13px; }
+  .open-link { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #1F2419; color: #F0EBE0; text-decoration: none; font-size: 12px; font-weight: 500; border-radius: 7px; font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.04em; text-transform: uppercase; margin-left: 13px; }
+  .open-link:hover { background: #3D5A1E; }
+  .frame { margin-top: 24px; border: 0.5px solid #E6DFCF; border-radius: 10px; overflow: hidden; background: #1A1A1A; }
+  iframe { display: block; width: 100%; border: none; }
+  .iframe-desktop { height: 1000px; }
+  .iframe-phone { height: 880px; }
+  .iframe-foldable { height: 920px; }
+  .notes { margin-top: 24px; padding: 16px 20px; background: #F0EBE0; border-left: 2px solid #5C7A2E; border-radius: 0 8px 8px 0; }
+  .notes-title { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #3D5A1E; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-bottom: 8px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { font-size: 13px; color: #4D4A3F; margin-bottom: 6px; line-height: 1.5; }
+  .notes li:last-child { margin-bottom: 0; }
+  .notes li code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; background: #FFFFFF; padding: 1px 5px; border-radius: 3px; border: 0.5px solid #E6DFCF; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="preamble">
+    <div class="meta">DESIGN MOCKUPS · v0.1.0 · MAY 2026</div>
+    <h1>Health & Fitness — UI Reference</h1>
+    <p>Three static mockups of the Dashboard surface across web, phone, and foldable. Use these alongside <code style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;background:#FFFFFF;padding:1px 6px;border-radius:3px;border:0.5px solid #E6DFCF;">../specs/IMPL-01-ui-design-spec.md</code> as the visual reference for IMPL-02 implementation.</p>
+  </div>
+
+  <section class="section">
+    <h2>Desktop Dashboard</h2>
+    <div class="section-meta">dashboard-desktop.html · target 1280px · primary analytical surface</div>
+    <p>Persistent 220px left nav with primary destinations, devices block, settings, and user pill. Content area shows vitals strip, body composition hero chart, two-column Blood + Today panel, recent activity feed.</p>
+    <a class="open-link" href="dashboard-desktop.html" target="_blank">Open in new tab →</a>
+    <div class="frame"><iframe class="iframe-desktop" src="dashboard-desktop.html"></iframe></div>
+    <div class="notes">
+      <div class="notes-title">Implementation notes</div>
+      <ul>
+        <li>Nav active state: <code>bg.canvas.signal</code> pill background, no left bar. Different visual language from content section titles.</li>
+        <li>Section titles in content area always prefixed by a 3×11px olive vertical bar at <code>accent.signal</code>.</li>
+        <li>All numerics in <code>JetBrains Mono</code> with tabular figures. All caps labels in <code>JetBrains Mono</code> with <code>+0.08em</code> tracking.</li>
+        <li>Devices block: status dot color encodes connection state (<code>data.good</code> = connected, <code>data.muted</code> = disconnected).</li>
+        <li>Badge "2" on Blood: this is a notification pattern surfacing newly out-of-range markers. Use sparingly.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Phone Today</h2>
+    <div class="section-meta">dashboard-phone.html · target 380px · capture and at-a-glance</div>
+    <p>iOS-style framing for reference (Android polish swaps the status bar conventions). 2×2 vitals grid, Today summary with calorie ring and macros, 4-tile quick log row, recent activity feed, bottom nav with four destinations.</p>
+    <a class="open-link" href="dashboard-phone.html" target="_blank">Open in new tab →</a>
+    <div class="frame"><iframe class="iframe-phone" src="dashboard-phone.html"></iframe></div>
+    <div class="notes">
+      <div class="notes-title">Implementation notes</div>
+      <ul>
+        <li>Bottom nav active state: 2×24px olive underline pill above the icon plus olive icon + label. Restrained but legible.</li>
+        <li>Quick log tiles: 80px tall, icon in <code>accent.signal</code>, caps mono label below. <code>bg.surface</code> fill.</li>
+        <li>For Android implementation, replace the iOS status bar with system status bar and remove the home indicator pill at the bottom.</li>
+        <li>Vitals labeled differently in compact form: "Resting HR" full label on phone (not abbreviated "RHR" like foldable) because the phone has fewer cards competing for width.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Foldable Dashboard (unfolded)</h2>
+    <div class="section-meta">dashboard-foldable.html · target 760dp · book posture, vertical hinge</div>
+    <p>Icon-only collapsed left nav (64px wide). Dashboard content fills remaining canvas with the same density as desktop but slightly compressed. Subtle 1px vertical hinge crease at 7% opacity runs down the center.</p>
+    <a class="open-link" href="dashboard-foldable.html" target="_blank">Open in new tab →</a>
+    <div class="frame"><iframe class="iframe-foldable" src="dashboard-foldable.html"></iframe></div>
+    <div class="notes">
+      <div class="notes-title">Implementation notes</div>
+      <ul>
+        <li>Nav active state on icon-only nav: 2px olive vertical bar on the left edge of the icon. Different treatment from desktop nav because pill background feels cramped at 38px icon size.</li>
+        <li>Amber dot on Blood icon replaces the "2" badge from desktop. A numeric badge would dominate the icon at this size.</li>
+        <li>Hinge crease is decorative only. Content spans both halves continuously. Dashboard purpose is one-glance overview, not list+detail.</li>
+        <li>Tabletop posture for active workout still needs a mockup. Half-fold the device, hinge horizontal: top screen for live stats, bottom for log controls. To be added.</li>
+        <li>Detection via <code>WindowInfoTracker</code> posture events. Layout collapses to phone when folded, expands to this when opened.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
