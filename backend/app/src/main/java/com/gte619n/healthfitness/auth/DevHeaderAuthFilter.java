@@ -1,0 +1,38 @@
+package com.gte619n.healthfitness.auth;
+
+import com.gte619n.healthfitness.core.auth.CurrentUser;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+// Dev/test-only bypass. Reads X-Dev-User and pre-authenticates the request,
+// so downstream code can use CurrentUserProvider without a real Google JWT.
+// Registered conditionally — see SecurityConfig. NEVER enabled in production.
+public class DevHeaderAuthFilter extends OncePerRequestFilter {
+    static final String HEADER = "X-Dev-User";
+
+    @Override
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain chain
+    ) throws ServletException, IOException {
+        String userId = request.getHeader(HEADER);
+        if (userId != null && !userId.isBlank()) {
+            CurrentUser cu = new CurrentUser(userId, null, null);
+            PreAuthenticatedAuthenticationToken token = new PreAuthenticatedAuthenticationToken(
+                cu, "n/a", List.of(new SimpleGrantedAuthority("ROLE_USER"))
+            );
+            token.setAuthenticated(true);
+            SecurityContextHolder.getContext().setAuthentication(token);
+        }
+        chain.doFilter(request, response);
+    }
+}

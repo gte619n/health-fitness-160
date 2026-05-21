@@ -11,14 +11,16 @@ dependencies {
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)
-    // OAuth2 client + security wired up but inert until IMPL-XX adds login flow.
     implementation(libs.spring.boot.starter.security)
-    implementation(libs.spring.boot.starter.oauth2.client)
+    // IMPL-02: backend is a JWT resource server validating Google ID tokens.
+    // The login flow runs on each client; backend never initiates OAuth.
+    implementation(libs.spring.boot.starter.oauth2.resource.server)
     // Spring Cloud GCP starter for Firestore. Disabled in tests via
     // application-test.yml so unit tests don't need GCP credentials.
     implementation(libs.spring.cloud.gcp.firestore)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.security.test)
 }
 
 springBoot {

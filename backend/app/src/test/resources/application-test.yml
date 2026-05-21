@@ -14,3 +14,12 @@ spring:
       - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreAutoConfiguration
       - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreEmulatorAutoConfiguration
       - com.google.cloud.spring.autoconfigure.secretmanager.GcpSecretManagerAutoConfiguration
+
+# IMPL-02 dev-mode bypass. Accepts X-Dev-User in place of a Google JWT.
+# Only enabled here — production application.yml hard-codes dev-mode: false.
+app:
+  auth:
+    dev-mode: true
+    allowed-audiences: test-audience
+  cors:
+    allowed-origins: http://localhost:3000
