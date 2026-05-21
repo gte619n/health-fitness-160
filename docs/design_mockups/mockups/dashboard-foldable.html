@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health & Fitness — Foldable Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/instrument-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #1A1A1A; min-height: 100vh; }
+  body {
+    font-family: 'Instrument Sans', 'Inter', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+  }
+  .device { width: 760px; background: #F0EBE0; border-radius: 18px; overflow: hidden; border: 6px solid #2A2A24; position: relative; color: #1F2419; line-height: 1.4; display: grid; grid-template-columns: 64px 1fr; box-shadow: 0 32px 80px rgba(0,0,0,0.6); }
+  .hinge { position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(0,0,0,0.07); pointer-events:none; z-index:50; }
+
+  .nav { background:#EBE4D0; border-right:0.5px solid #DDD3BB; padding:14px 0; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .logo { width:38px; height:38px; background:#1F2419; color:#F0EBE0; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:500; font-size:12px; letter-spacing:-0.02em; font-family:'JetBrains Mono', ui-monospace, monospace; margin-bottom:12px; }
+  .nav-icon { width:42px; height:38px; background:transparent; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; }
+  .nav-icon .ti { font-size:18px; color:#8A8770; }
+  .nav-icon.active { background:#E8EBD8; }
+  .nav-icon.active::before { content:''; position:absolute; left:0; top:9px; bottom:9px; width:2px; background:#5C7A2E; border-radius:0 2px 2px 0; }
+  .nav-icon.active .ti { color:#3D5A1E; }
+  .nav-icon .alert-dot { position:absolute; top:6px; right:6px; width:6px; height:6px; background:#A06A1F; border-radius:50%; border:1px solid #EBE4D0; }
+  .nav-footer { margin-top:auto; display:flex; flex-direction:column; align-items:center; gap:3px; padding-top:12px; border-top:0.5px solid #DDD3BB; width:100%; }
+  .nav-avatar { width:38px; height:38px; border-radius:8px; background:#1F2419; color:#F0EBE0; display:flex; align-items:center; justify-content:center; font-weight:500; font-size:12px; letter-spacing:0.02em; }
+
+  .content { padding:18px 22px 22px; overflow:hidden; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .topbar h1 { font-size:20px; font-weight:500; color:#1F2419; letter-spacing:-0.015em; margin:0; }
+  .topbar .date { font-size:11px; color:#8A8770; margin-top:2px; font-variant-numeric:tabular-nums; font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:0.04em; }
+  .topbar-controls { display:flex; align-items:center; gap:7px; }
+  .range-pill { display:flex; align-items:center; gap:6px; padding:6px 11px; background:#FFFFFF; border:0.5px solid #E6DFCF; border-radius:7px; font-size:11px; color:#6B6856; font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:0.04em; font-variant-numeric:tabular-nums; }
+  .icon-btn { width:32px; height:32px; border-radius:7px; border:0.5px solid #E6DFCF; background:#FFFFFF; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#6B6856; position:relative; }
+  .icon-btn .ti { font-size:13px; }
+  .icon-btn .dot { position:absolute; top:6px; right:7px; width:5px; height:5px; background:#5C7A2E; border-radius:50%; border:1.5px solid #FFFFFF; }
+
+  .vitals { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:11px; }
+  .stat { background:#FFFFFF; border:0.5px solid #E6DFCF; border-radius:10px; padding:11px 12px 10px; }
+  .stat-label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+  .stat-label-row .caps { font-size:10px; color:#8A8770; text-transform:uppercase; letter-spacing:0.08em; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .stat-label-row .ti { font-size:12px; color:#B5B09C; }
+  .stat-value { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:19px; font-weight:500; color:#1F2419; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; line-height:1.1; }
+  .stat-value .unit { font-size:10px; color:#8A8770; margin-left:2px; font-weight:400; }
+  .stat-footer { display:flex; align-items:center; justify-content:space-between; margin-top:5px; }
+  .delta { font-size:10px; font-variant-numeric:tabular-nums; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .delta.good { color:#5C7A2E; }
+  .pill { display:inline-block; padding:1px 5px; font-size:9px; font-weight:500; border-radius:3px; text-transform:uppercase; letter-spacing:0.06em; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .pill.good { background:#E8EBD8; color:#3D5A1E; }
+
+  .card { background:#FFFFFF; border:0.5px solid #E6DFCF; border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .section-title { display:flex; align-items:center; gap:8px; }
+  .accent-bar { display:inline-block; width:3px; height:12px; background:#5C7A2E; border-radius:2px; }
+  .section-title .title-text { font-size:13px; font-weight:500; color:#1F2419; letter-spacing:-0.01em; }
+  .hero-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:11px; }
+  .hero-numerics { display:flex; align-items:baseline; gap:14px; margin-top:10px; }
+  .hero-numerics .primary { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:30px; font-weight:500; color:#1F2419; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; line-height:1; }
+  .hero-numerics .primary .unit { font-size:12px; color:#8A8770; margin-left:3px; font-weight:400; }
+  .hero-numerics .secondary { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:15px; font-weight:500; color:#1F2419; font-variant-numeric:tabular-nums; letter-spacing:-0.01em; line-height:1; }
+  .hero-numerics .secondary .unit { font-size:10px; color:#8A8770; margin-left:2px; font-weight:400; }
+  .hero-numerics .delta-row { font-size:10px; color:#5C7A2E; margin-top:4px; font-variant-numeric:tabular-nums; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .v-divider { width:0.5px; height:34px; background:#E6DFCF; }
+  .segment { display:flex; background:#F0EBE0; border-radius:6px; padding:2px; gap:1px; }
+  .segment button { padding:4px 8px; font-size:10px; background:transparent; border:none; color:#8A8770; cursor:pointer; border-radius:4px; font-weight:500; font-family:inherit; }
+  .segment button.active { background:#FFFFFF; border:0.5px solid #E6DFCF; color:#1F2419; }
+
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .row-spread { display:flex; align-items:center; justify-content:space-between; margin-bottom:11px; }
+  .status-text { font-size:9px; color:#8A8770; font-variant-numeric:tabular-nums; font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:0.06em; }
+  .status-text-caps { font-size:9px; color:#8A8770; text-transform:uppercase; letter-spacing:0.08em; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .marker-row { margin-bottom:10px; }
+  .marker-row:last-child { margin-bottom:0; }
+  .marker-row-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .marker-name { font-size:11px; color:#1F2419; font-weight:500; }
+  .marker-value { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
+  .marker-value.warn { color:#A06A1F; }
+  .marker-value.good { color:#5C7A2E; }
+  .marker-value .unit { color:#8A8770; font-size:9px; margin-left:2px; font-weight:400; }
+  .range-bar { position:relative; height:3px; background:#F0EBE0; }
+  .range-bar .good-fill { position:absolute; height:100%; background:#E8EBD8; left:0; }
+  .range-bar .tick { position:absolute; width:2px; height:3px; background:#1F2419; }
+
+  .today-cal-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:11px; }
+  .today-cal-label { font-size:9px; color:#8A8770; text-transform:uppercase; letter-spacing:0.08em; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; margin-bottom:3px; }
+  .today-cal-value { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:19px; font-weight:500; color:#1F2419; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; line-height:1; }
+  .today-cal-value .target { font-size:10px; color:#8A8770; margin-left:3px; font-weight:400; }
+  .macros { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding-bottom:10px; border-bottom:0.5px solid #EFE7D2; }
+  .macro .caps { font-size:9px; color:#8A8770; text-transform:uppercase; letter-spacing:0.08em; font-weight:500; font-family:'JetBrains Mono', ui-monospace, monospace; margin-bottom:3px; }
+  .macro .val { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:12px; font-weight:500; color:#1F2419; font-variant-numeric:tabular-nums; }
+  .macro .val .unit { color:#8A8770; font-size:9px; margin-left:2px; font-weight:400; }
+  .macro .progress { height:2px; background:#F0EBE0; margin-top:4px; }
+  .macro .progress .fill { height:100%; }
+  .workout-summary { display:flex; align-items:center; justify-content:space-between; padding-top:10px; }
+  .workout-summary .title { font-size:11px; color:#1F2419; font-weight:500; }
+  .workout-summary .meta { font-size:10px; color:#8A8770; font-variant-numeric:tabular-nums; font-family:'JetBrains Mono', ui-monospace, monospace; margin-top:1px; }
+
+  .recent-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .log-entry { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:0.5px solid #EFE7D2; }
+  .log-entry:last-child { border-bottom:none; }
+  .log-icon { width:24px; height:24px; border-radius:5px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .log-icon.activity { background:#E8EBD8; color:#3D5A1E; }
+  .log-icon.neutral { background:#F0EBE0; color:#6B6856; }
+  .log-icon .ti { font-size:12px; }
+  .log-content { flex:1; min-width:0; }
+  .log-title { font-size:11px; color:#1F2419; font-weight:500; }
+  .log-time { text-align:right; font-family:'JetBrains Mono', ui-monospace, monospace; font-size:10px; color:#6B6856; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div class="device">
+<div class="hinge"></div>
+
+<aside class="nav">
+  <div class="logo">HF</div>
+  <button class="nav-icon active"><i class="ti ti-layout-dashboard"></i></button>
+  <button class="nav-icon"><i class="ti ti-body-scan"></i></button>
+  <button class="nav-icon"><i class="ti ti-droplet"></i><span class="alert-dot"></span></button>
+  <button class="nav-icon"><i class="ti ti-barbell"></i></button>
+  <button class="nav-icon"><i class="ti ti-bowl"></i></button>
+  <button class="nav-icon"><i class="ti ti-pill"></i></button>
+  <button class="nav-icon"><i class="ti ti-sparkles"></i></button>
+  <div class="nav-footer">
+    <button class="nav-icon"><i class="ti ti-settings"></i></button>
+    <div class="nav-avatar">EG</div>
+  </div>
+</aside>
+
+<main class="content">
+  <div class="topbar">
+    <div>
+      <h1>Dashboard</h1>
+      <div class="date">TUE · MAY 20 · 07:42 · ATL</div>
+    </div>
+    <div class="topbar-controls">
+      <div class="range-pill"><i class="ti ti-calendar" style="font-size:12px;color:#8A8770;"></i>90D<i class="ti ti-chevron-down" style="font-size:11px;color:#8A8770;"></i></div>
+      <button class="icon-btn"><i class="ti ti-bell"></i><span class="dot"></span></button>
+    </div>
+  </div>
+
+  <div class="vitals">
+    <div class="stat">
+      <div class="stat-label-row"><span class="caps">Weight</span><i class="ti ti-scale"></i></div>
+      <div class="stat-value">189.2<span class="unit">lb</span></div>
+      <div class="stat-footer"><span class="delta good">↓ 0.4 7d</span><svg width="34" height="14" viewBox="0 0 48 20"><polyline points="0,12 6,10 12,13 18,9 24,11 30,8 36,9 42,6 48,7" fill="none" stroke="#5C7A2E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label-row"><span class="caps">HRV</span><i class="ti ti-activity-heartbeat"></i></div>
+      <div class="stat-value">62<span class="unit">ms</span></div>
+      <div class="stat-footer"><span class="delta good">↑ 3 7d</span><svg width="34" height="14" viewBox="0 0 48 20"><polyline points="0,14 6,11 12,12 18,8 24,10 30,7 36,6 42,5 48,4" fill="none" stroke="#5C7A2E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label-row"><span class="caps">RHR</span><i class="ti ti-heart"></i></div>
+      <div class="stat-value">51<span class="unit">bpm</span></div>
+      <div class="stat-footer"><span class="delta good">↓ 1 7d</span><svg width="34" height="14" viewBox="0 0 48 20"><polyline points="0,7 6,9 12,8 18,10 24,9 30,11 36,10 42,12 48,13" fill="none" stroke="#5C7A2E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label-row"><span class="caps">Ready</span><i class="ti ti-flame"></i></div>
+      <div class="stat-value">84<span class="unit">%</span></div>
+      <div class="stat-footer"><span class="pill good">Primed</span><svg width="34" height="14" viewBox="0 0 48 20"><polyline points="0,9 6,8 12,11 18,7 24,8 30,6 36,5 42,7 48,5" fill="none" stroke="#5C7A2E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hero-header">
+      <div>
+        <div class="section-title"><span class="accent-bar"></span><span class="title-text">Body composition</span></div>
+        <div class="hero-numerics">
+          <div>
+            <div class="primary">189.2<span class="unit">lb</span></div>
+            <div class="delta-row">↓ 3.6 90d</div>
+          </div>
+          <div class="v-divider"></div>
+          <div>
+            <div class="secondary">17.4<span class="unit">% fat</span></div>
+            <div class="delta-row">↓ 0.8 pts</div>
+          </div>
+          <div>
+            <div class="secondary">156.3<span class="unit">lean</span></div>
+            <div class="delta-row">↑ 1.2</div>
+          </div>
+        </div>
+      </div>
+      <div class="segment"><button>30d</button><button class="active">90d</button><button>1y</button><button>All</button></div>
+    </div>
+    <svg viewBox="0 0 600 140" style="width:100%;height:auto;display:block;" aria-label="Weight trend over the past 90 days">
+      <line x1="0" y1="26" x2="600" y2="26" stroke="#EFE7D2" stroke-width="0.5" stroke-dasharray="2 3"/>
+      <line x1="0" y1="62" x2="600" y2="62" stroke="#EFE7D2" stroke-width="0.5" stroke-dasharray="2 3"/>
+      <line x1="0" y1="98" x2="600" y2="98" stroke="#EFE7D2" stroke-width="0.5" stroke-dasharray="2 3"/>
+      <text x="4" y="24" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">194</text>
+      <text x="4" y="60" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">192</text>
+      <text x="4" y="96" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">190</text>
+      <text x="4" y="128" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">188</text>
+      <path id="weight-area" d="" fill="#5C7A2E" fill-opacity="0.06" stroke="none"/>
+      <path id="weight-line" d="" fill="none" stroke="#5C7A2E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <path id="weight-avg" d="" fill="none" stroke="#1F2419" stroke-width="1" stroke-dasharray="3 3" stroke-linejoin="round" opacity="0.4"/>
+      <circle id="weight-current" cx="0" cy="0" r="3.5" fill="#5C7A2E" stroke="#FFFFFF" stroke-width="2"/>
+      <text x="32" y="138" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">FEB 20</text>
+      <text x="180" y="138" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">MAR 22</text>
+      <text x="335" y="138" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">APR 20</text>
+      <text x="500" y="138" font-size="8" fill="#B5B09C" font-family="'JetBrains Mono', ui-monospace, monospace">MAY 20</text>
+    </svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card" style="margin:0;padding:13px 15px;">
+      <div class="row-spread">
+        <div class="section-title"><span class="accent-bar" style="height:11px;"></span><span class="title-text" style="font-size:12px;">Blood panel</span></div>
+        <span class="status-text">OCT 14 · 2025</span>
+      </div>
+      <div class="marker-row">
+        <div class="marker-row-top"><span class="marker-name">LDL</span><span class="marker-value warn">112<span class="unit">mg/dL</span></span></div>
+        <div class="range-bar"><div class="good-fill" style="width:55%;"></div><div class="tick" style="left:62%;"></div></div>
+      </div>
+      <div class="marker-row">
+        <div class="marker-row-top"><span class="marker-name">ApoB</span><span class="marker-value warn">92<span class="unit">mg/dL</span></span></div>
+        <div class="range-bar"><div class="good-fill" style="width:45%;"></div><div class="tick" style="left:51%;"></div></div>
+      </div>
+      <div class="marker-row">
+        <div class="marker-row-top"><span class="marker-name">HbA1c</span><span class="marker-value good">5.2<span class="unit">%</span></span></div>
+        <div class="range-bar"><div class="good-fill" style="width:57%;"></div><div class="tick" style="left:33%;"></div></div>
+      </div>
+      <div class="marker-row">
+        <div class="marker-row-top"><span class="marker-name">hs-CRP</span><span class="marker-value good">0.4<span class="unit">mg/L</span></span></div>
+        <div class="range-bar"><div class="good-fill" style="width:33%;"></div><div class="tick" style="left:13%;"></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin:0;padding:13px 15px;">
+      <div class="row-spread">
+        <div class="section-title"><span class="accent-bar" style="height:11px;"></span><span class="title-text" style="font-size:12px;">Today</span></div>
+        <span class="status-text-caps">In progress</span>
+      </div>
+      <div class="today-cal-row">
+        <div>
+          <div class="today-cal-label">Calories</div>
+          <div class="today-cal-value">1,247<span class="target">/ 2,800</span></div>
+        </div>
+        <svg width="38" height="38" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#F0EBE0" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#5C7A2E" stroke-width="4" stroke-dasharray="113.1" stroke-dashoffset="62.7" transform="rotate(-90 22 22)" stroke-linecap="round"/>
+          <text x="22" y="26" text-anchor="middle" font-size="9" fill="#1F2419" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500">45%</text>
+        </svg>
+      </div>
+      <div class="macros">
+        <div class="macro"><div class="caps">Protein</div><div class="val">112<span class="unit">g</span></div><div class="progress"><div class="fill" style="width:56%;background:#5C7A2E;"></div></div></div>
+        <div class="macro"><div class="caps">Carbs</div><div class="val">98<span class="unit">g</span></div><div class="progress"><div class="fill" style="width:35%;background:#8A9F5C;"></div></div></div>
+        <div class="macro"><div class="caps">Fat</div><div class="val">42<span class="unit">g</span></div><div class="progress"><div class="fill" style="width:48%;background:#B5B09C;"></div></div></div>
+      </div>
+      <div class="workout-summary">
+        <div>
+          <div class="title">Pull Day · 06:15</div>
+          <div class="meta">52 min · 14,200 lb</div>
+        </div>
+        <span class="pill good">Done</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px 15px;">
+    <div class="recent-header">
+      <div class="section-title"><span class="accent-bar" style="height:11px;"></span><span class="title-text" style="font-size:12px;">Recent</span></div>
+    </div>
+    <div class="log-entry"><div class="log-icon activity"><i class="ti ti-barbell"></i></div><div class="log-content"><div class="log-title">Pull Day completed · 5 exercises · 18 sets</div></div><div class="log-time">07:08</div></div>
+    <div class="log-entry"><div class="log-icon neutral"><i class="ti ti-scale"></i></div><div class="log-content"><div class="log-title">Weighed in · 189.2 lb · Aria Air</div></div><div class="log-time">06:14</div></div>
+    <div class="log-entry"><div class="log-icon activity"><i class="ti ti-pill"></i></div><div class="log-content"><div class="log-title">Rosuvastatin · 10 mg · 94% adherence 30d</div></div><div class="log-time">05:58</div></div>
+    <div class="log-entry"><div class="log-icon neutral"><i class="ti ti-moon"></i></div><div class="log-content"><div class="log-title">Sleep · 7h 42m · Score 87 · REM 1h 38m</div></div><div class="log-time">05:30</div></div>
+  </div>
+
+</main>
+</div>
+
+<script>
+(function(){
+  const weights = [192.8,192.6,193.1,192.9,192.4,192.7,192.3,192.0,192.5,191.8,191.6,192.1,191.4,191.7,191.2,190.9,191.4,190.8,190.5,191.0,190.6,190.3,190.8,190.4,190.1,190.5,190.7,190.2,190.0,190.4,189.8,190.1,189.6,189.9,189.4,189.7,190.0,189.5,189.3,189.6,189.9,189.4,189.2,189.5,189.1,189.4,189.8,189.3,189.0,189.4,189.7,189.2];
+  const ma = weights.map((_,i)=>{const s=Math.max(0,i-6);const sl=weights.slice(s,i+1);return sl.reduce((a,b)=>a+b,0)/sl.length;});
+  const W=600, H=140, yMin=188, yMax=194, padX=26, padY=14;
+  const x=i=>padX+(i/(weights.length-1))*(W-padX-12);
+  const y=v=>padY+((yMax-v)/(yMax-yMin))*(H-padY-22);
+  let line=`M ${x(0).toFixed(1)} ${y(weights[0]).toFixed(1)}`;
+  for(let i=1;i<weights.length;i++){line+=` L ${x(i).toFixed(1)} ${y(weights[i]).toFixed(1)}`;}
+  const area=line+` L ${x(weights.length-1).toFixed(1)} ${(H-22).toFixed(1)} L ${x(0).toFixed(1)} ${(H-22).toFixed(1)} Z`;
+  let avg=`M ${x(0).toFixed(1)} ${y(ma[0]).toFixed(1)}`;
+  for(let i=1;i<ma.length;i++){avg+=` L ${x(i).toFixed(1)} ${y(ma[i]).toFixed(1)}`;}
+  document.getElementById('weight-line').setAttribute('d',line);
+  document.getElementById('weight-area').setAttribute('d',area);
+  document.getElementById('weight-avg').setAttribute('d',avg);
+  const c=document.getElementById('weight-current');
+  c.setAttribute('cx',x(weights.length-1).toFixed(1));
+  c.setAttribute('cy',y(weights[weights.length-1]).toFixed(1));
+})();
+</script>
+</body>
+</html>
