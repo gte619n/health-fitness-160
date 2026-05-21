@@ -52,4 +52,11 @@ dependencies {
     // Tiles + complications wired through but inert; surfaces added in IMPL-XX.
     implementation(libs.wear.tiles)
     implementation(libs.wear.complications)
+
+    // IMPL-02: phone-to-wear token relay over the Wearable Data Layer plus a
+    // DataStore-backed cache mirroring the phone-side IdTokenCache.
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.datastore.preferences)
 }

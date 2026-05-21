@@ -30,6 +30,11 @@ wearToolingPreview = "1.0.0"
 healthServices = "1.1.0-alpha04"
 wearTiles = "1.4.1"
 wearComplications = "1.2.1"
+playServicesWearable = "18.2.0"
+
+# Auth
+credentials = "1.3.0"
+googleid = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -51,6 +56,7 @@ window-manager = { module = "androidx.window:window", version.ref = "window" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
@@ -80,6 +86,15 @@ wear-tooling-preview = { module = "androidx.wear:wear-tooling-preview", version.
 wear-tiles = { module = "androidx.wear.tiles:tiles", version.ref = "wearTiles" }
 wear-complications = { module = "androidx.wear.watchface:watchface-complications-data-source", version.ref = "wearComplications" }
 health-services-client = { module = "androidx.health:health-services-client", version.ref = "healthServices" }
+
+# Auth (IMPL-02): Credential Manager + Google ID. Use the Web client ID as
+# the OAuth audience even on Android — that's Google's documented pattern.
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+google-id = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+
+# Wearable Data Layer — phone-to-wear token relay.
+play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "playServicesWearable" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 

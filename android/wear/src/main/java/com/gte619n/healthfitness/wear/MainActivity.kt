@@ -6,18 +6,28 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import com.gte619n.healthfitness.wear.auth.SignInRequiredScreen
+import com.gte619n.healthfitness.wear.auth.WearIdTokenCache
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val cache = WearIdTokenCache(applicationContext)
         setContent {
             MaterialTheme {
-                WearHelloScreen()
+                val token by cache.idTokenFlow.collectAsState(initial = null)
+                if (token.isNullOrBlank()) {
+                    SignInRequiredScreen()
+                } else {
+                    WearHelloScreen()
+                }
             }
         }
     }
@@ -29,6 +39,6 @@ fun WearHelloScreen() {
         modifier = Modifier.fillMaxSize().padding(8.dp),
     ) {
         item { Text("Health & Fitness", style = MaterialTheme.typography.titleMedium) }
-        item { Text("Hello from Wear", style = MaterialTheme.typography.bodySmall) }
+        item { Text("Signed in", style = MaterialTheme.typography.bodySmall) }
     }
 }

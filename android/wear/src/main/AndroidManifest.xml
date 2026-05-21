@@ -21,5 +21,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- IMPL-02: receives Google ID tokens relayed from the paired phone. -->
+        <service
+            android:name=".auth.PhoneTokenSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/auth/" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

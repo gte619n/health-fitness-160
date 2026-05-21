@@ -17,6 +17,16 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // IMPL-02: Google sign-in via Credential Manager uses the WEB OAuth
+        // client ID as the audience, even on Android. Override at build time
+        // via -PwebOauthClientId=... or the WEB_OAUTH_CLIENT_ID env var; falls
+        // back to empty so debug builds compile before secrets are wired.
+        val webOauthClientId =
+            (project.findProperty("webOauthClientId") as String?)
+                ?: System.getenv("WEB_OAUTH_CLIENT_ID")
+                ?: ""
+        buildConfigField("String", "WEB_OAUTH_CLIENT_ID", "\"$webOauthClientId\"")
     }
 
     buildTypes {
@@ -38,6 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -71,6 +82,10 @@ dependencies {
 
     implementation(libs.datastore.preferences)
     implementation(libs.coil.compose)
+
+    // IMPL-02: phone publishes ID tokens to paired wear nodes.
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
 }

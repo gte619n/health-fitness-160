@@ -11,24 +11,49 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
+import com.gte619n.healthfitness.data.auth.AuthState
+import com.gte619n.healthfitness.data.auth.GoogleAuthRepository
+import com.gte619n.healthfitness.data.auth.IdTokenCache
+import com.gte619n.healthfitness.mobile.auth.AuthCoordinator
+import com.gte619n.healthfitness.mobile.auth.SignInScreen
 import com.gte619n.healthfitness.mobile.dashboard.FoldableDashboardScreen
 import com.gte619n.healthfitness.mobile.dashboard.PhoneTodayScreen
+import com.gte619n.healthfitness.mobile.wear.PhoneTokenPublisher
 import com.gte619n.healthfitness.ui.HealthFitnessTheme
 import com.gte619n.healthfitness.ui.theme.Hf
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var authCoordinator: AuthCoordinator
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         observeFoldState()
+
+        val cache = IdTokenCache(applicationContext)
+        val publisher = PhoneTokenPublisher(applicationContext)
+        val repo = GoogleAuthRepository(
+            context = this,
+            cache = cache,
+            webOauthClientId = BuildConfig.WEB_OAUTH_CLIENT_ID,
+            onTokenIssued = { token, _ -> publisher.publish(token) },
+        )
+        authCoordinator = AuthCoordinator(repo, cache)
+
+        lifecycleScope.launch { authCoordinator.bootstrap() }
+
         setContent {
             HealthFitnessTheme {
                 val windowSize = calculateWindowSizeClass(this)
@@ -36,7 +61,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Hf.colors.canvas,
                 ) {
-                    DashboardRoot(widthClass = windowSize.widthSizeClass)
+                    AppRoot(
+                        coordinator = authCoordinator,
+                        widthClass = windowSize.widthSizeClass,
+                    )
                 }
             }
         }
@@ -67,6 +95,24 @@ class MainActivity : ComponentActivity() {
                     }
             }
         }
+    }
+}
+
+@Composable
+private fun AppRoot(
+    coordinator: AuthCoordinator,
+    widthClass: WindowWidthSizeClass,
+) {
+    val state by coordinator.state.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    when (state) {
+        is AuthState.SignedIn -> DashboardRoot(widthClass)
+        AuthState.Loading -> SignInScreen(state = state, onSignIn = {})
+        else -> SignInScreen(
+            state = state,
+            onSignIn = { scope.launch { coordinator.interactiveSignIn() } },
+        )
     }
 }
 
