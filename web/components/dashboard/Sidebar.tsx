@@ -1,3 +1,4 @@
+import { TessetaMark } from "@/components/brand/TessetaMark";
 import { devices, navItems } from "@/lib/fixtures/dashboard";
 import { SidebarNavItem } from "@/components/dashboard/SidebarNavItem";
 
@@ -11,12 +12,10 @@ export function Sidebar({ user }: { user: SidebarUser }) {
   return (
     <aside className="flex min-h-[880px] flex-col border-r-[0.5px] border-border-strong bg-canvas-muted px-3.5 py-[22px]">
       <div className="mb-2.5 flex items-center gap-[11px] border-b-[0.5px] border-border-strong px-1.5 pb-[18px]">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-mono text-[12px] font-medium tracking-[-0.02em] text-inverse">
-          HF
-        </div>
+        <TessetaMark variant="dark" size={32} className="rounded-[7px]" />
         <div>
           <div className="text-[13px] font-medium leading-[1.1] tracking-[-0.01em] text-primary">
-            Health · Fitness
+            tesseta
           </div>
           <div className="mt-0.5 caps-mono text-[9px] text-tertiary">v0.1.0</div>
         </div>

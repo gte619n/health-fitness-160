@@ -29,7 +29,7 @@ fun SignInScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Health & Fitness", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
+            Text("tesseta", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
             Text(
                 "Sign in with Google to continue.",
                 style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,

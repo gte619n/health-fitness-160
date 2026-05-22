@@ -17,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Health & Fitness",
-  description: "Personal health and fitness platform",
+  title: "tesseta",
+  description: "A health record made of small tiles.",
 };
 
 export default function RootLayout({

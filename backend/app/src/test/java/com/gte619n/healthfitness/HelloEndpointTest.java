@@ -24,7 +24,7 @@ class HelloEndpointTest {
     void helloReturnsGreeting() throws Exception {
         mvc.perform(get("/api/hello"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.message").value("Hello from health-fitness-backend"))
+           .andExpect(jsonPath("$.message").value("Hello from tesseta"))
            .andExpect(jsonPath("$.timestamp").exists());
     }
 }

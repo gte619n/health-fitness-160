@@ -36,7 +36,7 @@ steps:
       # headers. AUTH_URL pins the canonical base URL so Auth.js doesn't
       # fall back to the container's bind hostname (0.0.0.0 from the
       # Dockerfile's ENV HOSTNAME) when building callback URLs.
-      - --set-env-vars=BACKEND_URL=https://health-fitness-backend-mbysudfbja-uc.a.run.app,AUTH_TRUST_HOST=true,AUTH_URL=https://health-fitness-web-mbysudfbja-uc.a.run.app
+      - --set-env-vars=BACKEND_URL=https://api.tesseta.com,AUTH_TRUST_HOST=true,AUTH_URL=https://app.tesseta.com
       # AUTH_GOOGLE_* feed Auth.js; AUTH_SECRET encrypts the session
       # cookie. Without these the next-auth handlers throw on every
       # request to /api/auth/* and the body-comp connect flow can't

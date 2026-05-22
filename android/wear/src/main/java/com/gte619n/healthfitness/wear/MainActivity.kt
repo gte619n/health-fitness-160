@@ -38,7 +38,7 @@ fun WearHelloScreen() {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize().padding(8.dp),
     ) {
-        item { Text("Health & Fitness", style = MaterialTheme.typography.titleMedium) }
+        item { Text("tesseta", style = MaterialTheme.typography.titleMedium) }
         item { Text("Signed in", style = MaterialTheme.typography.bodySmall) }
     }
 }

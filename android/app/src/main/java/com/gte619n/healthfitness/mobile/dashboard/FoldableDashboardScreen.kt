@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gte619n.healthfitness.ui.TessetaMark
+import com.gte619n.healthfitness.ui.TessetaMarkVariant
 import com.gte619n.healthfitness.ui.theme.Hf
 import com.gte619n.healthfitness.ui.theme.type
 
@@ -88,19 +90,9 @@ private fun FoldableSidebar() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        // Logo
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(Hf.colors.textPrimary, RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "HF",
-                style = Hf.type.monoMd.copy(fontSize = 12.sp),
-                color = Hf.colors.textInverse,
-            )
-        }
+        // Logo — Tesseta mark, ink squircle per LOGO-SPEC.md (foldable
+        // section). 38 dp matches the spec's foldable rail size.
+        TessetaMark(variant = TessetaMarkVariant.DARK, size = 38.dp)
         Spacer(Modifier.height(9.dp))
         DashboardFixtures.foldableNav.forEach { dest ->
             FoldableNavIcon(
