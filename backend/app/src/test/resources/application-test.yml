@@ -1,25 +1,26 @@
-spring:
-  cloud:
-    gcp:
-      core:
-        enabled: false
-      firestore:
-        enabled: false
-      secretmanager:
-        enabled: false
-  autoconfigure:
-    exclude:
-      - com.google.cloud.spring.autoconfigure.core.GcpContextAutoConfiguration
-      - com.google.cloud.spring.autoconfigure.core.environment.StackdriverEnvironmentPostProcessor
-      - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreAutoConfiguration
-      - com.google.cloud.spring.autoconfigure.firestore.GcpFirestoreEmulatorAutoConfiguration
-      - com.google.cloud.spring.autoconfigure.secretmanager.GcpSecretManagerAutoConfiguration
-
 # IMPL-02 dev-mode bypass. Accepts X-Dev-User in place of a Google JWT.
 # Only enabled here — production application.yml hard-codes dev-mode: false.
+# IMPL-03 turns Firestore off for unit tests; integration tests override
+# this property back to true via @TestPropertySource alongside an emulator.
 app:
   auth:
     dev-mode: true
     allowed-audiences: test-audience
   cors:
     allowed-origins: http://localhost:3000
+  gcp:
+    project-id: health-fitness-test
+  persistence:
+    firestore-enabled: false
+  googlehealth:
+    # Tests that need Google Health behavior install a stub via
+    # @TestConfiguration; the values below just keep @Value injection
+    # quiet for unit-test contexts that load the full app.
+    api-base-url: http://localhost:9999/healthapi
+    oauth-token-url: http://localhost:9999/oauth
+    backfill-days: 1460
+    backfill-chunk-days: 365
+    webhook-secret: test-webhook-secret
+    kms-key-name: projects/test/locations/us-central1/keyRings/test/cryptoKeys/test
+    web-oauth-client-id: test-client-id
+    web-oauth-client-secret: test-client-secret

@@ -7,9 +7,23 @@ set -euo pipefail
 # Backend listens on http://localhost:8080 with CORS allowing localhost:3000.
 # Web listens on http://localhost:3000 and forwards bearer tokens to backend.
 # Ctrl-C tears both down.
+#
+# Flags:
+#   --emulator   Boot the local Firestore emulator on :8085 first, then
+#                point the backend at it via FIRESTORE_EMULATOR_HOST.
+#                Without this flag the backend talks to real Firestore in
+#                project health-fitness-160.
 
 PROJECT_ID="health-fitness-160"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+USE_EMULATOR=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --emulator) USE_EMULATOR=1 ;;
+    *) echo "Unknown flag: $arg" >&2; exit 2 ;;
+  esac
+done
 
 require() {
   command -v "$1" >/dev/null 2>&1 || { echo "Missing required tool: $1" >&2; exit 1; }
@@ -30,6 +44,7 @@ AUTH_SECRET="$(secret authjs-secret)"
 # --- Backend env ---
 export OAUTH_ALLOWED_AUDIENCES
 export CORS_ALLOWED_ORIGINS="http://localhost:3000"
+export GCP_PROJECT_ID="$PROJECT_ID"
 
 # --- Web env (.env.local) ---
 WEB_ENV="${REPO_ROOT}/web/.env.local"
@@ -43,14 +58,28 @@ echo "    wrote $WEB_ENV"
 
 # --- Run both ---
 
+EMULATOR_PID=""
+
 cleanup() {
   echo
   echo "==> Stopping"
-  [[ -n "${BACKEND_PID:-}" ]] && kill "$BACKEND_PID" 2>/dev/null || true
-  [[ -n "${WEB_PID:-}"     ]] && kill "$WEB_PID"     2>/dev/null || true
+  [[ -n "${BACKEND_PID:-}"  ]] && kill "$BACKEND_PID"  2>/dev/null || true
+  [[ -n "${WEB_PID:-}"      ]] && kill "$WEB_PID"      2>/dev/null || true
+  [[ -n "${EMULATOR_PID:-}" ]] && kill "$EMULATOR_PID" 2>/dev/null || true
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+if [[ "$USE_EMULATOR" -eq 1 ]]; then
+  echo "==> Starting Firestore emulator on :8085"
+  gcloud emulators firestore start --host-port=localhost:8085 \
+      --project="$PROJECT_ID" >/tmp/firestore-emulator.log 2>&1 &
+  EMULATOR_PID=$!
+  export FIRESTORE_EMULATOR_HOST="localhost:8085"
+  # Give the emulator a moment to bind the port.
+  until nc -z localhost 8085 2>/dev/null; do sleep 0.5; done
+  echo "    emulator ready ($FIRESTORE_EMULATOR_HOST)"
+fi
 
 echo "==> Starting backend"
 (cd "${REPO_ROOT}/backend" && ./gradlew :app:bootRun --console=plain) &

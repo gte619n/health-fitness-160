@@ -4,9 +4,13 @@ plugins {
 
 dependencies {
     api(project(":core"))
-    // Firestore client wired in later (see libs.versions.toml: google-cloud-firestore,
-    // spring-cloud-gcp-firestore). Kept out of scope for IMPL-00 to avoid pulling
-    // GCP credentials into the unit-test path.
+    implementation(libs.google.cloud.firestore)
+    implementation(libs.spring.boot.autoconfigure)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.gcloud)
+    // Spring Boot 3.5 ships JUnit Platform 1.12 but Gradle's embedded test
+    // worker uses an older launcher. Pin the launcher so versions align.
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

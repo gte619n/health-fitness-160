@@ -1,6 +1,3 @@
-substitutions:
-  _BACKEND_URL: "http://localhost:8080"
-
 steps:
   - id: build-image
     name: gcr.io/cloud-builders/docker
@@ -32,7 +29,18 @@ steps:
       - --service-account=health-fitness-runtime@$PROJECT_ID.iam.gserviceaccount.com
       - --allow-unauthenticated
       - --port=8080
-      - --set-env-vars=BACKEND_BASE_URL=${_BACKEND_URL}
+      # BACKEND_URL is what lib/api.ts and auth.ts read. The previous
+      # cloudbuild used BACKEND_BASE_URL which did not match the code, so
+      # the deployed web couldn't reach the backend.
+      # AUTH_TRUST_HOST=true tells Auth.js v5 to trust the X-Forwarded-Host
+      # header set by Cloud Run's load balancer. Without it, every
+      # /api/auth/* call rejects with UntrustedHost.
+      - --set-env-vars=BACKEND_URL=https://health-fitness-backend-mbysudfbja-uc.a.run.app,AUTH_TRUST_HOST=true
+      # AUTH_GOOGLE_* feed Auth.js; AUTH_SECRET encrypts the session
+      # cookie. Without these the next-auth handlers throw on every
+      # request to /api/auth/* and the body-comp connect flow can't
+      # complete its OAuth round-trip.
+      - --set-secrets=AUTH_GOOGLE_ID=oauth-web-client-id:latest,AUTH_GOOGLE_SECRET=oauth-web-client-secret:latest,AUTH_SECRET=authjs-secret:latest
 
 images:
   - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/web:$SHORT_SHA

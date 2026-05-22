@@ -1,0 +1,14 @@
+{
+  "_comment": "Composite indexes deployed via `gcloud firestore indexes composite create` or `gcloud firestore deploy --indexes-file`. IMPL-04 adds the metric+sampleTime index for body composition range queries. The single-field index on users.googleHealth.healthUserId is created automatically by Firestore — no entry needed here.",
+  "indexes": [
+    {
+      "collectionGroup": "bodyComposition",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metric", "order": "ASCENDING" },
+        { "fieldPath": "sampleTime", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

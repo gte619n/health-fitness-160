@@ -29,6 +29,15 @@ steps:
       - --service-account=health-fitness-runtime@$PROJECT_ID.iam.gserviceaccount.com
       - --allow-unauthenticated
       - --port=8080
+      # IMPL-02: CORS allow-list is the deployed web origin. IMPL-04:
+      # GCP_PROJECT_ID makes the Firestore + KMS clients pick the right
+      # project; GOOGLE_HEALTH_KMS_KEY pins the envelope-encryption key.
+      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,CORS_ALLOWED_ORIGINS=https://health-fitness-web-mbysudfbja-uc.a.run.app,GOOGLE_HEALTH_KMS_KEY=projects/$PROJECT_ID/locations/us-central1/keyRings/auth/cryptoKeys/google-health-refresh-tokens
+      # OAUTH_* feed the IMPL-02 JWT audience check and the IMPL-04
+      # refresh-token exchange. GOOGLE_HEALTH_WEBHOOK_SECRET is the
+      # shared secret Google sends in the Authorization header on push
+      # notifications.
+      - --set-secrets=OAUTH_ALLOWED_AUDIENCES=oauth-allowed-audiences:latest,OAUTH_WEB_CLIENT_ID=oauth-web-client-id:latest,OAUTH_WEB_CLIENT_SECRET=oauth-web-client-secret:latest,GOOGLE_HEALTH_WEBHOOK_SECRET=google-health-webhook-secret:latest
 
 images:
   - us-central1-docker.pkg.dev/$PROJECT_ID/health-fitness/backend:$SHORT_SHA

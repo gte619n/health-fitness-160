@@ -1,0 +1,175 @@
+package com.gte619n.healthfitness.googlehealth;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataType;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import com.gte619n.healthfitness.testsupport.TestPersistenceConfig;
+
+// End-to-end test of the webhook endpoint against the real HTTP server.
+// Mocks the WebhookHandlerService so we can assert the controller's
+// decisions (auth check, probe handling, parse-and-dispatch) without
+// needing real Google Health data.
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = "app.googlehealth.webhook-secret=Bearer test-webhook-secret"
+)
+@ActiveProfiles("test")
+@Import({TestPersistenceConfig.class, GoogleHealthWebhookControllerTest.HandlerStubConfig.class})
+class GoogleHealthWebhookControllerTest {
+
+    @TestConfiguration
+    static class HandlerStubConfig {
+        @Bean
+        WebhookHandlerService webhookHandlerService() {
+            return org.mockito.Mockito.mock(WebhookHandlerService.class);
+        }
+    }
+
+    @LocalServerPort int port;
+    @Autowired WebhookHandlerService handler;
+
+    private final HttpClient http = HttpClient.newHttpClient();
+
+    @BeforeEach
+    void resetHandlerMock() {
+        // Bean is a singleton, so previous tests' invocations leak. Reset.
+        Mockito.reset(handler);
+    }
+
+    @Test
+    void rejectsMissingAuthorizationHeader() throws Exception {
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .POST(HttpRequest.BodyPublishers.ofString(""))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(401);
+        verify(handler, never()).handle(any());
+    }
+
+    @Test
+    void rejectsWrongSecret() throws Exception {
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .header("Authorization", "wrong-secret")
+                .POST(HttpRequest.BodyPublishers.ofString(""))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(401);
+        verify(handler, never()).handle(any());
+    }
+
+    @Test
+    void acceptsAuthorizedProbeWithPartialNotificationShape() throws Exception {
+        // Google's domain-verification probe sends a JSON body whose
+        // notification fields are blank ('' for healthUserId, startTime,
+        // etc.). The endpoint must respond 200, not 500 on a parse error.
+        String probeBody = """
+            {
+              "healthUserId": "",
+              "dataType": "",
+              "operation": "UPSERT",
+              "intervals": [ { "startTime": "", "endTime": "" } ]
+            }
+            """;
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .header("Authorization", "Bearer test-webhook-secret")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(probeBody))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        verify(handler, never()).handle(any());
+    }
+
+    @Test
+    void acceptsAuthorizedDomainVerificationProbe() throws Exception {
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .header("Authorization", "Bearer test-webhook-secret")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        verify(handler, never()).handle(any());
+    }
+
+    @Test
+    void parsesAndDispatchesUpsertNotification() throws Exception {
+        String body = """
+            {
+              "healthUserId": "12345",
+              "dataType": "weight",
+              "operation": "UPSERT",
+              "intervals": [
+                { "startTime": "2026-05-01T00:00:00Z", "endTime": "2026-05-20T00:00:00Z" }
+              ]
+            }
+            """;
+
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .header("Authorization", "Bearer test-webhook-secret")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        ArgumentCaptor<WebhookHandlerService.Notification> captor =
+            ArgumentCaptor.forClass(WebhookHandlerService.Notification.class);
+        verify(handler).handle(captor.capture());
+        WebhookHandlerService.Notification got = captor.getValue();
+        assertThat(got.healthUserId()).isEqualTo("12345");
+        assertThat(got.dataType()).isEqualTo(GoogleHealthDataType.WEIGHT);
+        assertThat(got.operation()).isEqualTo(WebhookHandlerService.Operation.UPSERT);
+    }
+
+    @Test
+    void parsesDeleteNotification() throws Exception {
+        String body = """
+            {
+              "healthUserId": "12345",
+              "dataType": "body-fat",
+              "operation": "DELETE",
+              "intervals": [
+                { "startTime": "2026-05-01T00:00:00Z", "endTime": "2026-05-20T00:00:00Z" }
+              ]
+            }
+            """;
+
+        HttpResponse<String> response = http.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/webhooks/google-health"))
+                .header("Authorization", "Bearer test-webhook-secret")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        ArgumentCaptor<WebhookHandlerService.Notification> captor =
+            ArgumentCaptor.forClass(WebhookHandlerService.Notification.class);
+        verify(handler).handle(captor.capture());
+        assertThat(captor.getValue().operation()).isEqualTo(WebhookHandlerService.Operation.DELETE);
+        assertThat(captor.getValue().dataType()).isEqualTo(GoogleHealthDataType.BODY_FAT);
+    }
+}

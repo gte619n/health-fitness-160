@@ -19,17 +19,32 @@ management:
       probes:
         enabled: true
 
-spring.cloud.gcp:
-  project-id: health-fitness-160
-  firestore:
-    project-id: health-fitness-160
-
 # IMPL-02: backend validates Google ID tokens against accounts.google.com.
 # `allowed-audiences` is the CSV of the three OAuth client IDs (web, android
 # phone, android wear). `dev-mode` is hard-gated to application-test.yml.
+# IMPL-03: Firestore is the persistence layer. `firestore-enabled` defaults
+# to true; unit tests flip it off and provide an in-memory fake.
+# IMPL-04: Google Health API integration. The webhook secret arrives in the
+# Authorization header from Google's push notifications. KMS key envelope-
+# encrypts the per-user refresh tokens (see ADR-0004). Backfill defaults
+# to 4 years (1460 days) on first connect, chunked by year.
 app:
   auth:
     allowed-audiences: ${OAUTH_ALLOWED_AUDIENCES:}
     dev-mode: false
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  gcp:
+    project-id: ${GCP_PROJECT_ID:health-fitness-160}
+    firestore-emulator-host: ${FIRESTORE_EMULATOR_HOST:}
+  persistence:
+    firestore-enabled: true
+  googlehealth:
+    api-base-url: https://health.googleapis.com/v4
+    oauth-token-url: https://oauth2.googleapis.com/token
+    backfill-days: 1460
+    backfill-chunk-days: 365
+    webhook-secret: ${GOOGLE_HEALTH_WEBHOOK_SECRET:}
+    kms-key-name: ${GOOGLE_HEALTH_KMS_KEY:projects/health-fitness-160/locations/us-central1/keyRings/auth/cryptoKeys/google-health-refresh-tokens}
+    web-oauth-client-id: ${OAUTH_WEB_CLIENT_ID:}
+    web-oauth-client-secret: ${OAUTH_WEB_CLIENT_SECRET:}

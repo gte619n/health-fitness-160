@@ -15,12 +15,16 @@ dependencies {
     // IMPL-02: backend is a JWT resource server validating Google ID tokens.
     // The login flow runs on each client; backend never initiates OAuth.
     implementation(libs.spring.boot.starter.oauth2.resource.server)
-    // Spring Cloud GCP starter for Firestore. Disabled in tests via
-    // application-test.yml so unit tests don't need GCP credentials.
-    implementation(libs.spring.cloud.gcp.firestore)
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.security.test)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.gcloud)
+    // Needed for the UserProvisioningFilterIntegrationTest which reads
+    // Firestore documents directly to assert the filter's side effects.
+    testImplementation(libs.google.cloud.firestore)
+    // See persistence/build.gradle.kts — same JUnit Platform alignment.
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 springBoot {

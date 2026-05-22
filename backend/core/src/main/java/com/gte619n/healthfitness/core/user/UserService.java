@@ -21,6 +21,7 @@ public class UserService {
             current.userId(),
             current.email(),
             current.displayName(),
+            null,
             now,
             now
         ));

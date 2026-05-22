@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -65,10 +66,27 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/hello", "/actuator/health", "/actuator/info").permitAll()
+                // Webhook endpoint is authenticated via shared secret in the
+                // Authorization header, not via Google ID token, so it
+                // bypasses the JWT filter entirely.
+                .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/api/me/**", "/api/me").authenticated()
                 .anyRequest().denyAll()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(j -> {}))
+            // Webhook endpoints arrive with `Authorization: Bearer <secret>`
+            // where <secret> is our shared webhook secret, NOT a Google ID
+            // token. The default bearer-token resolver would try to JWT-
+            // decode it and fail with 401 before our controller could see
+            // the request. Skip resolution for /api/webhooks/** so the
+            // request reaches the controller's own auth check.
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .bearerTokenResolver(request -> {
+                    if (request.getRequestURI().startsWith("/api/webhooks/")) {
+                        return null;
+                    }
+                    return new DefaultBearerTokenResolver().resolve(request);
+                })
+                .jwt(j -> {}))
             .addFilterAfter(provisioning, BearerTokenAuthenticationFilter.class)
             .httpBasic(b -> b.disable())
             .formLogin(f -> f.disable());
