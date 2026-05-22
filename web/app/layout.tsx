@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Providers } from "@/components/ui/Providers";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -37,7 +38,9 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css"
         />
       </head>
-      <body className="font-sans antialiased bg-canvas text-primary">{children}</body>
+      <body className="font-sans antialiased bg-canvas text-primary">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
