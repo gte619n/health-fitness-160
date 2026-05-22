@@ -54,7 +54,10 @@ public final class BodyCompositionMapper {
 
     private static double extractValue(JsonNode metricNode, GoogleHealthDataType dataType) {
         return switch (dataType) {
-            case WEIGHT -> metricNode.path("kilograms").asDouble();
+            // Google Health stores weight as `weightGrams` (an int field in
+            // grams) inside the weight object. Convert to canonical kg.
+            case WEIGHT -> metricNode.path("weightGrams").asDouble() / 1000.0;
+            // bodyFat exposes a `percentage` decimal field directly.
             case BODY_FAT -> metricNode.path("percentage").asDouble();
         };
     }

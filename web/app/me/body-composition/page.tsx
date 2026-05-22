@@ -17,10 +17,15 @@ type Reading = {
   recordingMethod: string | null;
 };
 
+// Backend stores everything in canonical units (kg for masses). The page
+// converts to imperial at render time. Keep storage canonical so we can
+// add a per-user unit preference later without migrating data.
+const KG_TO_LB = 2.20462;
+
 const METRIC_LABELS: Record<Metric, { name: string; unit: string }> = {
-  WEIGHT_KG: { name: "Weight", unit: "kg" },
+  WEIGHT_KG: { name: "Weight", unit: "lb" },
   BODY_FAT_PERCENT: { name: "Body fat", unit: "%" },
-  LEAN_MASS_KG: { name: "Lean mass", unit: "kg" },
+  LEAN_MASS_KG: { name: "Lean mass", unit: "lb" },
   BMI: { name: "BMI", unit: "" },
 };
 
@@ -30,6 +35,16 @@ const METRIC_ORDER: Metric[] = [
   "LEAN_MASS_KG",
   "BMI",
 ];
+
+function displayValue(value: number, metric: Metric): number {
+  switch (metric) {
+    case "WEIGHT_KG":
+    case "LEAN_MASS_KG":
+      return value * KG_TO_LB;
+    default:
+      return value;
+  }
+}
 
 const GOOGLE_HEALTH_SCOPE =
   "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly";
@@ -120,7 +135,7 @@ export default async function BodyCompositionPage() {
                   {label.name}
                 </div>
                 <div className="mt-2 font-mono text-[26px] font-medium tabular text-primary">
-                  {reading ? formatValue(reading.value, metric) : "—"}
+                  {reading ? formatValue(displayValue(reading.value, metric), metric) : "—"}
                   {label.unit && (
                     <span className="ml-1 text-[14px] text-secondary">
                       {label.unit}
@@ -171,7 +186,7 @@ export default async function BodyCompositionPage() {
                       </td>
                       <td className="px-5 py-2 text-primary">{label.name}</td>
                       <td className="px-5 py-2 text-right text-primary">
-                        {formatValue(r.value, r.metric)}
+                        {formatValue(displayValue(r.value, r.metric), r.metric)}
                         {label.unit && (
                           <span className="ml-1 text-tertiary">
                             {label.unit}

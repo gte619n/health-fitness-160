@@ -14,12 +14,13 @@ class BodyCompositionMapperTest {
 
     @Test
     void parsesWeightDataPoint() throws Exception {
+        // Google Health stores weight in grams. Mapper converts to kg.
         JsonNode json = mapper.readTree("""
             {
               "name": "users/2515055256096816351/dataTypes/weight/dataPoints/8896720705097069096",
               "dataSource": { "recordingMethod": "AUTOMATIC", "platform": "FITBIT" },
               "weight": {
-                "kilograms": 82.4,
+                "weightGrams": 82400,
                 "sampleTime": { "physicalTime": "2026-05-20T07:45:00Z" }
               },
               "updateTime": "2026-05-20T07:45:01Z"
@@ -64,7 +65,7 @@ class BodyCompositionMapperTest {
         JsonNode json = mapper.readTree("""
             { "name": "users/u/dataTypes/weight/dataPoints/r",
               "dataSource": { "platform": "FITBIT" },
-              "weight": { "kilograms": 80 },
+              "weight": { "weightGrams": 80000 },
               "updateTime": "2026-05-20T07:45:01Z" }
             """);
         GoogleHealthDataPoint point = BodyCompositionMapper.fromJson(json, GoogleHealthDataType.WEIGHT);

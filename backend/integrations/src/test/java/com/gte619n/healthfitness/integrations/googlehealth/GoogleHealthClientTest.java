@@ -43,7 +43,7 @@ class GoogleHealthClientTest {
             { "dataPoints": [
               { "name": "users/u1/dataTypes/weight/dataPoints/r1",
                 "dataSource": { "platform": "FITBIT", "recordingMethod": "AUTOMATIC" },
-                "weight": { "kilograms": 80.0,
+                "weight": { "weightGrams": 80000,
                   "sampleTime": { "physicalTime": "2026-05-20T07:45:00Z" } } }
             ] }
             """);
@@ -71,7 +71,7 @@ class GoogleHealthClientTest {
             { "dataPoints": [
               { "name": "users/u/dataTypes/weight/dataPoints/r1",
                 "dataSource": { "platform": "FITBIT", "recordingMethod": "AUTOMATIC" },
-                "weight": { "kilograms": 80,
+                "weight": { "weightGrams": 80000,
                   "sampleTime": { "physicalTime": "2026-05-01T00:00:00Z" } } }
             ], "nextPageToken": "abc" }
             """);
@@ -79,7 +79,7 @@ class GoogleHealthClientTest {
             { "dataPoints": [
               { "name": "users/u/dataTypes/weight/dataPoints/r2",
                 "dataSource": { "platform": "FITBIT", "recordingMethod": "AUTOMATIC" },
-                "weight": { "kilograms": 81,
+                "weight": { "weightGrams": 81000,
                   "sampleTime": { "physicalTime": "2026-05-02T00:00:00Z" } } }
             ] }
             """);

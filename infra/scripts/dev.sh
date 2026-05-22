@@ -37,14 +37,27 @@ secret() {
 
 echo "==> Fetching secrets from Secret Manager"
 OAUTH_ALLOWED_AUDIENCES="$(secret oauth-allowed-audiences)"
-AUTH_GOOGLE_ID="$(secret oauth-web-client-id)"
-AUTH_GOOGLE_SECRET="$(secret oauth-web-client-secret)"
+OAUTH_WEB_CLIENT_ID="$(secret oauth-web-client-id)"
+OAUTH_WEB_CLIENT_SECRET="$(secret oauth-web-client-secret)"
+AUTH_GOOGLE_ID="$OAUTH_WEB_CLIENT_ID"
+AUTH_GOOGLE_SECRET="$OAUTH_WEB_CLIENT_SECRET"
 AUTH_SECRET="$(secret authjs-secret)"
+GOOGLE_HEALTH_WEBHOOK_SECRET="$(secret google-health-webhook-secret)"
 
 # --- Backend env ---
+# IMPL-02 audience checks + CORS allow-list for the local web origin.
 export OAUTH_ALLOWED_AUDIENCES
 export CORS_ALLOWED_ORIGINS="http://localhost:3000"
+# IMPL-03 Firestore project (real cloud Firestore unless --emulator).
 export GCP_PROJECT_ID="$PROJECT_ID"
+# IMPL-04 Google Health: backend refreshes the per-user OAuth token via
+# the web OAuth client, encrypts refresh tokens via the live KMS key
+# (defaulted in application.yml), and validates webhook callbacks with
+# the shared secret. KMS calls require ADC — make sure you've run
+# `gcloud auth application-default login` before this script.
+export OAUTH_WEB_CLIENT_ID
+export OAUTH_WEB_CLIENT_SECRET
+export GOOGLE_HEALTH_WEBHOOK_SECRET
 
 # --- Web env (.env.local) ---
 WEB_ENV="${REPO_ROOT}/web/.env.local"
