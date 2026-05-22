@@ -29,6 +29,8 @@ type Reading = {
   recordingMethod: string | null;
 };
 
+import type { Vital } from "@/lib/fixtures/dashboard";
+
 type BodyCompositionView = {
   primary: { value: string; unit: string; delta: string | null };
   secondary: { value: string; unit: string; delta: string | null }[];
@@ -36,6 +38,7 @@ type BodyCompositionView = {
   yMin: number;
   yMax: number;
   xLabels: { x: number; label: string }[];
+  weightVital: Vital | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -53,7 +56,7 @@ export default async function DashboardPage() {
           <TopBar />
 
           <section className="mb-3 grid grid-cols-4 gap-2.5">
-            {vitals.map((v) => (
+            {composeStatRow(view?.weightVital ?? null).map((v) => (
               <StatCard key={v.label} stat={v} />
             ))}
           </section>
@@ -129,6 +132,35 @@ async function loadBodyComposition(): Promise<BodyCompositionView | null> {
 
   const xLabels = buildXLabels(window);
 
+  // 7-day delta for the top-row StatCard. Compare against the value
+  // closest to (now - 7d).
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const reference = [...window]
+    .reverse()
+    .find((r) => new Date(r.sampleTime).getTime() <= sevenDaysAgo);
+  const sevenDayDelta = reference
+    ? latestWeight - reference.value * KG_TO_LB
+    : null;
+  const weightVital: Vital = {
+    label: "Weight",
+    icon: "scale",
+    value: latestWeight.toFixed(1),
+    unit: "lb",
+    delta:
+      sevenDayDelta !== null
+        ? {
+            direction: sevenDayDelta < 0 ? "down" : "up",
+            value: Math.abs(sevenDayDelta).toFixed(1),
+            window: "7d",
+            // Weight loss is typically the goal in this app's context; if
+            // the user wants weight gain (cut/bulk cycles), this can grow
+            // into a per-user preference later.
+            tone: sevenDayDelta <= 0 ? "good" : "alert",
+          }
+        : undefined,
+    sparkline: weightSparkline(series),
+  };
+
   return {
     primary: {
       value: latestWeight.toFixed(1),
@@ -151,7 +183,40 @@ async function loadBodyComposition(): Promise<BodyCompositionView | null> {
     yMin,
     yMax,
     xLabels,
+    weightVital,
   };
+}
+
+// Builds the 4-card stat row at the top of the dashboard. The Weight
+// card is computed from real backend data; the other three remain on
+// fixtures until we have data sources for them.
+function composeStatRow(weightVital: Vital | null): Vital[] {
+  const remaining = vitals.slice(1); // HRV / Resting HR / Readiness
+  const first = weightVital ?? vitals[0];
+  return first ? [first, ...remaining] : remaining;
+}
+
+// Render the weight series as a 48×20 polyline (the dimensions of
+// StatCard's sparkline). Picks 9 evenly-spaced points so the visual
+// density matches the other StatCards.
+function weightSparkline(series: number[]): string {
+  if (series.length === 0) return "";
+  const N = 9;
+  const idxs = Array.from({ length: N }, (_, i) =>
+    Math.round((i * (series.length - 1)) / (N - 1)),
+  );
+  const ys = idxs.map((i) => series[i] ?? 0);
+  const min = Math.min(...ys);
+  const max = Math.max(...ys);
+  const range = max - min || 1;
+  return ys
+    .map((y, i) => {
+      const x = (i * 48) / (N - 1);
+      // Higher weight → lower y (top of viewBox). Pad 2px top/bottom.
+      const yPx = 2 + ((max - y) / range) * 16;
+      return `${x.toFixed(0)},${yPx.toFixed(0)}`;
+    })
+    .join(" ");
 }
 
 function formatDelta(delta: number, unit: string, suffix: string): string {

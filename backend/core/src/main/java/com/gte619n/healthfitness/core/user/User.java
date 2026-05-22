@@ -7,6 +7,7 @@ public record User(
     String email,
     String displayName,
     GoogleHealthConnection googleHealth,
+    Integer heightCm,
     Instant createdAt,
     Instant updatedAt
 ) {}

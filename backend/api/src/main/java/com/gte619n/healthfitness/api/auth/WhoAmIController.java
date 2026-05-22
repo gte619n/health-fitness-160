@@ -2,6 +2,8 @@ package com.gte619n.healthfitness.api.auth;
 
 import com.gte619n.healthfitness.core.auth.CurrentUser;
 import com.gte619n.healthfitness.core.auth.CurrentUserProvider;
+import com.gte619n.healthfitness.core.user.User;
+import com.gte619n.healthfitness.core.user.UserRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,14 +12,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/me")
 public class WhoAmIController {
     private final CurrentUserProvider currentUser;
+    private final UserRepository users;
 
-    public WhoAmIController(CurrentUserProvider currentUser) {
+    public WhoAmIController(CurrentUserProvider currentUser, UserRepository users) {
         this.currentUser = currentUser;
+        this.users = users;
     }
 
     @GetMapping
     public WhoAmIResponse whoAmI() {
         CurrentUser cu = currentUser.get();
-        return new WhoAmIResponse(cu.userId(), cu.email(), cu.displayName());
+        Integer heightCm = users.findById(cu.userId())
+            .map(User::heightCm)
+            .orElse(null);
+        return new WhoAmIResponse(cu.userId(), cu.email(), cu.displayName(), heightCm);
     }
 }

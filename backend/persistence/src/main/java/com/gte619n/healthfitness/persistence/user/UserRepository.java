@@ -90,11 +90,14 @@ public class UserRepository implements com.gte619n.healthfitness.core.user.UserR
     }
 
     private static User toUser(String userId, DocumentSnapshot snapshot) {
+        Long heightLong = snapshot.getLong("heightCm");
+        Integer heightCm = heightLong == null ? null : heightLong.intValue();
         return new User(
             userId,
             snapshot.getString("email"),
             snapshot.getString("displayName"),
             toGoogleHealth(snapshot),
+            heightCm,
             toInstant(snapshot.get("createdAt")),
             toInstant(snapshot.get("updatedAt"))
         );

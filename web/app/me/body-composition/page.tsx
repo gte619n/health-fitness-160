@@ -1,6 +1,14 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { signIn } from "@/auth";
 import { apiFetch, apiJson } from "@/lib/api";
+
+type WhoAmI = {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  heightCm: number | null;
+};
 
 type Status = {
   connected: boolean;
@@ -45,7 +53,10 @@ const GOOGLE_HEALTH_SCOPE =
 export const dynamic = "force-dynamic";
 
 export default async function BodyCompositionPage() {
-  const status = await apiJson<Status>("/api/me/google-health/status");
+  const [status, me] = await Promise.all([
+    apiJson<Status>("/api/me/google-health/status"),
+    apiJson<WhoAmI>("/api/me"),
+  ]);
 
   async function connect() {
     "use server";
@@ -105,10 +116,22 @@ export default async function BodyCompositionPage() {
   const latestWeight = sessions.find((s) => s.weight)?.weight;
   const latestBodyFat = sessions.find((s) => s.bodyFat)?.bodyFat;
   const leanMassLb = computeLeanMass(sessions);
+  // BMI = weight_kg / (height_m)². We have the latest weight from
+  // Firestore and the user's height (set once, lives on the user doc).
+  const bmi =
+    latestWeight && me.heightCm
+      ? latestWeight.value / Math.pow(me.heightCm / 100, 2)
+      : null;
 
   return (
     <main className="min-h-screen bg-canvas p-8">
       <div className="mx-auto max-w-[920px] space-y-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-tertiary hover:text-secondary"
+        >
+          ← Dashboard
+        </Link>
         <header className="flex items-baseline justify-between">
           <h1 className="m-0 text-[22px] font-medium tracking-[-0.015em] text-primary">
             Body composition
@@ -143,10 +166,19 @@ export default async function BodyCompositionPage() {
           />
           <MetricCard
             label="BMI"
-            value="—"
+            value={bmi !== null ? bmi.toFixed(1) : "—"}
             unit=""
-            sampleTime={null}
-            footer="needs height — coming later"
+            // BMI uses the latest weight + the user's stored height; show
+            // the weight's timestamp so it's clear when it was last
+            // computed.
+            sampleTime={bmi !== null ? latestWeight?.sampleTime ?? null : null}
+            footer={
+              bmi === null
+                ? me.heightCm
+                  ? "needs a weight reading"
+                  : "set your height to compute BMI"
+                : null
+            }
           />
         </section>
 

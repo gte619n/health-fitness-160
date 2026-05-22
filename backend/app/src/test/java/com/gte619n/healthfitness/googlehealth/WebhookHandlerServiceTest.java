@@ -44,7 +44,7 @@ class WebhookHandlerServiceTest {
         handler = new WebhookHandlerService(users, measurements, tokens, googleHealth);
 
         when(users.findByHealthUserId("h-1")).thenReturn(Optional.of(
-            new User("u-1", "u@example.com", "U", null, Instant.EPOCH, Instant.EPOCH)));
+            new User("u-1", "u@example.com", "U", null, null, Instant.EPOCH, Instant.EPOCH)));
         when(tokens.accessTokenFor("u-1")).thenReturn("test-access-token");
     }
 

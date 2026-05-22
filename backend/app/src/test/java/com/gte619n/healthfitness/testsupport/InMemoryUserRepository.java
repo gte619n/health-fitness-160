@@ -44,6 +44,7 @@ public class InMemoryUserRepository implements UserRepository {
             existing.email(),
             existing.displayName(),
             connection,
+            existing.heightCm(),
             existing.createdAt(),
             Instant.now()
         ));
@@ -58,6 +59,7 @@ public class InMemoryUserRepository implements UserRepository {
             existing.email(),
             existing.displayName(),
             null,
+            existing.heightCm(),
             existing.createdAt(),
             Instant.now()
         ));
