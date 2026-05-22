@@ -18,11 +18,6 @@ dependencies {
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.security.test)
-    testImplementation(libs.testcontainers.junit.jupiter)
-    testImplementation(libs.testcontainers.gcloud)
-    // Needed for the UserProvisioningFilterIntegrationTest which reads
-    // Firestore documents directly to assert the filter's side effects.
-    testImplementation(libs.google.cloud.firestore)
     // See persistence/build.gradle.kts — same JUnit Platform alignment.
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

@@ -1,5 +1,17 @@
 # IMPL-03: Firestore persistence layer
 
+> **2026-05-22 revision**: Testcontainers-based integration tests are
+> removed. The persistence module's Firestore-backed tests proved
+> awkward to run on developer machines that don't have a Docker daemon
+> in a standard socket location, and the deployed environment turned
+> out to be the more efficient place to validate real Firestore
+> behavior. Local development now hits Cloud Firestore directly (the
+> `(default)` database); the deployed Cloud Run service points at a
+> separate `production` database via `FIRESTORE_DATABASE_ID=production`
+> in `backend/cloudbuild.yaml`. All other sections of this spec
+> describe the original landing — the file is preserved as a record of
+> what was planned and what changed.
+
 ## Goal
 
 Replace the in-memory `UserRepository` shim from IMPL-02 with a Firestore-

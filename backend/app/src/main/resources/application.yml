@@ -36,7 +36,9 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   gcp:
     project-id: ${GCP_PROJECT_ID:health-fitness-160}
-    firestore-emulator-host: ${FIRESTORE_EMULATOR_HOST:}
+    # Local dev defaults to the (default) Firestore database; deployed
+    # environments override with FIRESTORE_DATABASE_ID=production.
+    firestore-database-id: ${FIRESTORE_DATABASE_ID:(default)}
   persistence:
     firestore-enabled: true
   googlehealth:
