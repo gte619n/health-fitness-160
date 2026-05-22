@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { BloodPanel } from "@/components/dashboard/BloodPanel";
@@ -321,15 +322,15 @@ function BodyCompositionCard({ view }: { view: BodyCompositionView | null }) {
   if (!view) {
     return (
       <div className="mb-3 rounded-[10px] border-[0.5px] border-border-default bg-surface px-5 py-[18px]">
-        <SectionTitle>Body composition</SectionTitle>
+        <BodyCompositionTitle />
         <p className="mt-3 text-[13px] leading-[1.55] text-secondary">
           No body-comp data yet.{" "}
-          <a
+          <Link
             className="font-medium text-accent-dim underline-offset-2 hover:underline"
             href="/me/body-composition"
           >
             Connect Google Health
-          </a>{" "}
+          </Link>{" "}
           to start syncing weight and body fat from your scale.
         </p>
       </div>
@@ -340,7 +341,7 @@ function BodyCompositionCard({ view }: { view: BodyCompositionView | null }) {
     <div className="mb-3 rounded-[10px] border-[0.5px] border-border-default bg-surface px-5 py-[18px]">
       <div className="mb-3.5 flex items-start justify-between">
         <div>
-          <SectionTitle>Body composition</SectionTitle>
+          <BodyCompositionTitle />
           <div className="mt-3 flex items-baseline gap-[18px]">
             <div>
               <div className="font-mono text-[36px] font-medium leading-none tracking-[-0.03em] text-primary tabular">
@@ -398,5 +399,30 @@ function BodyCompositionCard({ view }: { view: BodyCompositionView | null }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Links the body-composition section title to /me/body-composition.
+// Mirrors the SectionTitle look but adds a hover affordance + arrow.
+function BodyCompositionTitle() {
+  return (
+    <Link
+      href="/me/body-composition"
+      className="group inline-flex items-center gap-2.5 hover:text-accent-dim"
+    >
+      <span
+        aria-hidden
+        className="inline-block h-3.5 w-[3px] rounded-[2px] bg-accent"
+      />
+      <span className="text-[14px] font-medium tracking-[-0.01em] text-primary group-hover:text-accent-dim">
+        Body composition
+      </span>
+      <span
+        aria-hidden
+        className="font-mono text-[11px] text-tertiary opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        →
+      </span>
+    </Link>
   );
 }
