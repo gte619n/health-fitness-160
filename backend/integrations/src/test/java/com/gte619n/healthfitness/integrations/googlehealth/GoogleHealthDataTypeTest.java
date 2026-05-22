@@ -9,10 +9,22 @@ import org.junit.jupiter.api.Test;
 class GoogleHealthDataTypeTest {
 
     @Test
-    void roundTripsAllMetrics() {
-        for (BodyCompositionMetric m : BodyCompositionMetric.values()) {
-            assertThat(GoogleHealthDataType.forMetric(m).toMetric()).isEqualTo(m);
-        }
+    void roundTripsQueryableMetrics() {
+        // Only WEIGHT_KG and BODY_FAT_PERCENT are queryable; LEAN_MASS_KG
+        // and BMI are domain placeholders we may compute later.
+        assertThat(GoogleHealthDataType.forMetric(BodyCompositionMetric.WEIGHT_KG).toMetric())
+            .isEqualTo(BodyCompositionMetric.WEIGHT_KG);
+        assertThat(GoogleHealthDataType.forMetric(BodyCompositionMetric.BODY_FAT_PERCENT).toMetric())
+            .isEqualTo(BodyCompositionMetric.BODY_FAT_PERCENT);
+    }
+
+    @Test
+    void forMetricRejectsNonQueryableMetrics() {
+        assertThatThrownBy(() -> GoogleHealthDataType.forMetric(BodyCompositionMetric.LEAN_MASS_KG))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("not queryable");
+        assertThatThrownBy(() -> GoogleHealthDataType.forMetric(BodyCompositionMetric.BMI))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -20,9 +32,6 @@ class GoogleHealthDataTypeTest {
         assertThat(GoogleHealthDataType.fromApiName("weight")).isEqualTo(GoogleHealthDataType.WEIGHT);
         assertThat(GoogleHealthDataType.fromApiName("body-fat")).isEqualTo(GoogleHealthDataType.BODY_FAT);
         assertThat(GoogleHealthDataType.fromApiName("body_fat")).isEqualTo(GoogleHealthDataType.BODY_FAT);
-        assertThat(GoogleHealthDataType.fromApiName("lean-mass")).isEqualTo(GoogleHealthDataType.LEAN_MASS);
-        assertThat(GoogleHealthDataType.fromApiName("lean_mass")).isEqualTo(GoogleHealthDataType.LEAN_MASS);
-        assertThat(GoogleHealthDataType.fromApiName("bmi")).isEqualTo(GoogleHealthDataType.BMI);
     }
 
     @Test

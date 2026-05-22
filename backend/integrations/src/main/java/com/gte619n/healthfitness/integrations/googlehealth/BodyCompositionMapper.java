@@ -49,16 +49,13 @@ public final class BodyCompositionMapper {
         return switch (dataType) {
             case WEIGHT -> "weight";
             case BODY_FAT -> "bodyFat";
-            case LEAN_MASS -> "leanMass";
-            case BMI -> "bmi";
         };
     }
 
     private static double extractValue(JsonNode metricNode, GoogleHealthDataType dataType) {
         return switch (dataType) {
-            case WEIGHT, LEAN_MASS -> metricNode.path("kilograms").asDouble();
+            case WEIGHT -> metricNode.path("kilograms").asDouble();
             case BODY_FAT -> metricNode.path("percentage").asDouble();
-            case BMI -> metricNode.path("value").asDouble();
         };
     }
 

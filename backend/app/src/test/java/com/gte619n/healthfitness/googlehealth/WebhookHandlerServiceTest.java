@@ -49,34 +49,27 @@ class WebhookHandlerServiceTest {
     }
 
     @Test
-    void weightUpsertAlsoPullsLeanMassAndBmi() {
+    void weightUpsertSavesWeightOnly() {
+        // lean-mass and BMI aren't queryable through the Google Health API,
+        // so no bonus pulls happen on weight notifications.
         when(googleHealth.listDataPoints(anyString(), eq(GoogleHealthDataType.WEIGHT), eq(FROM), eq(TO)))
             .thenReturn(List.of(point("w-1", GoogleHealthDataType.WEIGHT, 82.4)));
-        when(googleHealth.listDataPoints(anyString(), eq(GoogleHealthDataType.LEAN_MASS), eq(FROM), eq(TO)))
-            .thenReturn(List.of(point("l-1", GoogleHealthDataType.LEAN_MASS, 65.1)));
-        when(googleHealth.listDataPoints(anyString(), eq(GoogleHealthDataType.BMI), eq(FROM), eq(TO)))
-            .thenReturn(List.of(point("b-1", GoogleHealthDataType.BMI, 24.3)));
 
         handler.handle(new WebhookHandlerService.Notification(
             "h-1", GoogleHealthDataType.WEIGHT,
             WebhookHandlerService.Operation.UPSERT, FROM, TO));
 
         verify(googleHealth).listDataPoints(anyString(), eq(GoogleHealthDataType.WEIGHT), eq(FROM), eq(TO));
-        verify(googleHealth).listDataPoints(anyString(), eq(GoogleHealthDataType.LEAN_MASS), eq(FROM), eq(TO));
-        verify(googleHealth).listDataPoints(anyString(), eq(GoogleHealthDataType.BMI), eq(FROM), eq(TO));
 
         ArgumentCaptor<List<BodyCompositionMeasurement>> captor = saveCaptor();
         verify(measurements).saveAll(captor.capture());
         assertThat(captor.getValue())
             .extracting(BodyCompositionMeasurement::metric)
-            .containsExactlyInAnyOrder(
-                BodyCompositionMetric.WEIGHT_KG,
-                BodyCompositionMetric.LEAN_MASS_KG,
-                BodyCompositionMetric.BMI);
+            .containsExactly(BodyCompositionMetric.WEIGHT_KG);
     }
 
     @Test
-    void bodyFatUpsertDoesNotPullLeanMassOrBmi() {
+    void bodyFatUpsertSavesBodyFatOnly() {
         when(googleHealth.listDataPoints(anyString(), eq(GoogleHealthDataType.BODY_FAT), eq(FROM), eq(TO)))
             .thenReturn(List.of(point("bf-1", GoogleHealthDataType.BODY_FAT, 18.5)));
 
@@ -85,8 +78,6 @@ class WebhookHandlerServiceTest {
             WebhookHandlerService.Operation.UPSERT, FROM, TO));
 
         verify(googleHealth).listDataPoints(anyString(), eq(GoogleHealthDataType.BODY_FAT), eq(FROM), eq(TO));
-        verify(googleHealth, never()).listDataPoints(anyString(), eq(GoogleHealthDataType.LEAN_MASS), any(), any());
-        verify(googleHealth, never()).listDataPoints(anyString(), eq(GoogleHealthDataType.BMI), any(), any());
     }
 
     @Test

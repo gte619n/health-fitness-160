@@ -8,7 +8,6 @@ import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthClient;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataPoint;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataType;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -60,25 +59,9 @@ public class WebhookHandlerService {
 
     private void handleUpsert(String userId, Notification n) {
         String accessToken = tokens.accessTokenFor(userId);
-
-        List<GoogleHealthDataPoint> all = new ArrayList<>(
-            googleHealth.listDataPoints(accessToken, n.dataType, n.intervalStart, n.intervalEnd));
-
-        // Lean mass and BMI aren't accepted as webhook-subscribable types,
-        // but smart scales emit them in the same weigh-in as weight. When
-        // we get a weight notification, opportunistically pull both for the
-        // same interval so the user's lean-mass + BMI history stays current
-        // without a separate poller. Triggering on weight (and not body-fat
-        // too) keeps this to one bonus pull per weigh-in — body-fat
-        // notifications for the same event would otherwise double-pull.
-        if (n.dataType == GoogleHealthDataType.WEIGHT) {
-            all.addAll(googleHealth.listDataPoints(
-                accessToken, GoogleHealthDataType.LEAN_MASS, n.intervalStart, n.intervalEnd));
-            all.addAll(googleHealth.listDataPoints(
-                accessToken, GoogleHealthDataType.BMI, n.intervalStart, n.intervalEnd));
-        }
-
-        List<BodyCompositionMeasurement> measurementsList = all.stream()
+        List<GoogleHealthDataPoint> points = googleHealth.listDataPoints(
+            accessToken, n.dataType, n.intervalStart, n.intervalEnd);
+        List<BodyCompositionMeasurement> measurementsList = points.stream()
             .map(dp -> toMeasurement(userId, dp))
             .toList();
         measurements.saveAll(measurementsList);

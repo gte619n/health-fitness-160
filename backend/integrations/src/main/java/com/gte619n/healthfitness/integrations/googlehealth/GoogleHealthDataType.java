@@ -7,11 +7,16 @@ import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionMetric;
 // Filter prefix: snake_case ("body_fat").
 // JSON response object key: camelCase ("bodyFat", handled by the mapper).
 // All three are documented and confirmed against live error responses.
+//
+// Only WEIGHT and BODY_FAT are present here — the v4 Google Health API
+// does NOT expose lean-mass or BMI as queryable data types
+// (INVALID_PARENT_DATA_TYPE_COLLECTION at /dataTypes/lean-mass/dataPoints
+// confirms this). The BodyCompositionMetric enum keeps LEAN_MASS_KG and
+// BMI as domain concepts so we can compute them ourselves later from
+// weight + height.
 public enum GoogleHealthDataType {
     WEIGHT("weight", "weight"),
-    BODY_FAT("body-fat", "body_fat"),
-    LEAN_MASS("lean-mass", "lean_mass"),
-    BMI("bmi", "bmi");
+    BODY_FAT("body-fat", "body_fat");
 
     private final String urlSegment;
     private final String filterFieldName;
@@ -33,8 +38,8 @@ public enum GoogleHealthDataType {
         return switch (metric) {
             case WEIGHT_KG -> WEIGHT;
             case BODY_FAT_PERCENT -> BODY_FAT;
-            case LEAN_MASS_KG -> LEAN_MASS;
-            case BMI -> BMI;
+            case LEAN_MASS_KG, BMI -> throw new IllegalArgumentException(
+                metric + " is not queryable through the Google Health API");
         };
     }
 
@@ -42,8 +47,6 @@ public enum GoogleHealthDataType {
         return switch (this) {
             case WEIGHT -> BodyCompositionMetric.WEIGHT_KG;
             case BODY_FAT -> BodyCompositionMetric.BODY_FAT_PERCENT;
-            case LEAN_MASS -> BodyCompositionMetric.LEAN_MASS_KG;
-            case BMI -> BodyCompositionMetric.BMI;
         };
     }
 

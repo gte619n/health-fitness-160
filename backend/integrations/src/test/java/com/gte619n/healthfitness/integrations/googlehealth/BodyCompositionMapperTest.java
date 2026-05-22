@@ -55,26 +55,9 @@ class BodyCompositionMapperTest {
         assertThat(point.dataType()).isEqualTo(GoogleHealthDataType.BODY_FAT);
     }
 
-    @Test
-    void parsesLeanMassAndBmi() throws Exception {
-        JsonNode leanJson = mapper.readTree("""
-            { "name": "users/u/dataTypes/lean-mass/dataPoints/r",
-              "dataSource": { "recordingMethod": "AUTOMATIC", "platform": "FITBIT" },
-              "leanMass": { "kilograms": 65.1,
-                "sampleTime": { "physicalTime": "2026-05-20T08:00:00Z" } } }
-            """);
-        assertThat(BodyCompositionMapper.fromJson(leanJson, GoogleHealthDataType.LEAN_MASS).value())
-            .isEqualTo(65.1);
-
-        JsonNode bmiJson = mapper.readTree("""
-            { "name": "users/u/dataTypes/bmi/dataPoints/r2",
-              "dataSource": { "recordingMethod": "AUTOMATIC", "platform": "FITBIT" },
-              "bmi": { "value": 24.3,
-                "sampleTime": { "physicalTime": "2026-05-20T08:00:00Z" } } }
-            """);
-        assertThat(BodyCompositionMapper.fromJson(bmiJson, GoogleHealthDataType.BMI).value())
-            .isEqualTo(24.3);
-    }
+    // lean-mass and BMI aren't standalone data types in the v4 Google
+    // Health API (INVALID_PARENT_DATA_TYPE_COLLECTION), so the mapper
+    // doesn't need to handle them.
 
     @Test
     void fallsBackToUpdateTimeWhenSampleTimeMissing() throws Exception {

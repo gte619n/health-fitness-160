@@ -74,8 +74,8 @@ export default async function BodyCompositionPage() {
             Body composition
           </h1>
           <p className="mt-4 text-[14px] leading-[1.55] text-secondary">
-            Connect your Google Health account to sync weight, body fat,
-            lean mass, and BMI from your scale or other connected devices.
+            Connect your Google Health account to sync weight and body fat
+            from your scale or other connected devices.
           </p>
           <form action={connect} className="mt-6">
             <button
