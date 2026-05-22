@@ -4,6 +4,7 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.kms.v1.DecryptResponse;
 import com.google.cloud.kms.v1.EncryptResponse;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.cloud.kms.v1.KeyManagementServiceSettings;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,10 +32,26 @@ public class KmsTokenCipher {
     private static final int DEK_BYTES = 32; // AES-256
 
     private final String kmsKeyName;
+    private final String quotaProject;
     private final SecureRandom random = new SecureRandom();
 
     public KmsTokenCipher(@Value("${app.googlehealth.kms-key-name}") String kmsKeyName) {
         this.kmsKeyName = kmsKeyName;
+        // Pin the quota project to the project that owns the KMS key. Without
+        // this, local-dev runs that use Application Default Credentials may
+        // route KMS billing/quota through the developer's default project
+        // (e.g., a personal sandbox) where the KMS API isn't enabled —
+        // surfaces as a confusing PermissionDenied / API-not-enabled error
+        // even though the runtime principal has the right IAM grant on the
+        // actual key.
+        this.quotaProject = CryptoKeyName.parse(kmsKeyName).getProject();
+    }
+
+    private KeyManagementServiceClient newClient() throws IOException {
+        return KeyManagementServiceClient.create(
+            KeyManagementServiceSettings.newBuilder()
+                .setQuotaProjectId(quotaProject)
+                .build());
     }
 
     public EncryptedToken encrypt(String plaintext) {
@@ -73,7 +90,7 @@ public class KmsTokenCipher {
     }
 
     private byte[] encryptDekViaKms(byte[] dek) {
-        try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
+        try (KeyManagementServiceClient client = newClient()) {
             CryptoKeyName keyName = CryptoKeyName.parse(kmsKeyName);
             EncryptResponse response = client.encrypt(keyName, ByteString.copyFrom(dek));
             return response.getCiphertext().toByteArray();
@@ -83,7 +100,7 @@ public class KmsTokenCipher {
     }
 
     private byte[] decryptDekViaKms(byte[] wrappedDek) {
-        try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
+        try (KeyManagementServiceClient client = newClient()) {
             CryptoKeyName keyName = CryptoKeyName.parse(kmsKeyName);
             DecryptResponse response = client.decrypt(keyName, ByteString.copyFrom(wrappedDek));
             return response.getPlaintext().toByteArray();
