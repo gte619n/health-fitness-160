@@ -64,3 +64,9 @@ app:
     # deploy time. Local dev reads it from the same env var.
     gemini-api-key: ${GEMINI_API_KEY:}
     gemini-model: ${GEMINI_MODEL:gemini-3.5-flash}
+  bloodtest:
+    bucket: ${BLOODTEST_BUCKET:health-fitness-160-blood-tests}
+    # Direct Gemini API (not Vertex). API key in Secret Manager → env at
+    # deploy time. Local dev reads it from the same env var.
+    gemini-api-key: ${GEMINI_API_KEY:}
+    gemini-model: ${GEMINI_MODEL:gemini-3.5-flash}

@@ -50,3 +50,4 @@ coverage/
 tmp/
 .tmp/
 .playwright-mcp/
+web/package-lock.json
