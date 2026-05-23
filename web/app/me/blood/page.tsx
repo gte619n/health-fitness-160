@@ -503,13 +503,13 @@ function buildMarkerHistory(
   const history: Partial<Record<Marker, HistoryPoint[]>> = {};
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const cutoffDate = oneYearAgo.toISOString().split("T")[0];
+  const cutoffDate = oneYearAgo.toISOString().split("T")[0] ?? "";
 
   // Collect from readings
   for (const r of readings) {
     if (r.sampleDate < cutoffDate) continue;
     if (!history[r.marker]) history[r.marker] = [];
-    history[r.marker].push({ date: r.sampleDate, value: r.value });
+    history[r.marker]!.push({ date: r.sampleDate, value: r.value });
   }
 
   // Collect from reports
@@ -521,7 +521,7 @@ function buildMarkerHistory(
       if (!canonicalName) continue;
       const key = canonicalName as Marker;
       if (!history[key]) history[key] = [];
-      history[key].push({ date: report.sampleDate, value: m.value });
+      history[key]!.push({ date: report.sampleDate, value: m.value });
     }
   }
 
