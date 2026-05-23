@@ -148,6 +148,9 @@ export const DISCONTINUE_LABELS: Record<DiscontinueReason, string> = {
   OTHER: "Other",
 };
 
+// Alias for backward compatibility
+export const DISCONTINUE_REASON_LABELS = DISCONTINUE_LABELS;
+
 export function formatFrequency(freq: FrequencyConfig): string {
   switch (freq.type) {
     case "DAILY":

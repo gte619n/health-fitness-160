@@ -2,7 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { apiFetch, apiJson } from "@/lib/api";
 import type { Medication, Drug, FrequencyConfig, TimeSlot } from "@/lib/types/medication";
-import { MedicationGrid } from "@/components/medications/MedicationGrid";
+import { MedicationsSection } from "@/components/medications/MedicationsSection";
 import { AddMedicationButton } from "@/components/medications/AddMedicationButton";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +64,30 @@ export default async function MedsPage() {
     revalidatePath("/me/meds");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function updateMedication(medicationId: string, data: {
+    dose?: number;
+    unit?: string;
+    frequency?: FrequencyConfig;
+    timeSlots?: TimeSlot[];
+    notes?: string | null;
+    prescribedBy?: string | null;
+    changeNotes?: string;
+  }) {
+    "use server";
+    const res = await apiFetch(`/api/me/medications/${medicationId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to update medication: ${text}`);
+    }
+
+    revalidatePath("/me/meds");
+  }
+
   async function discontinueMedication(medicationId: string, reason: string, notes: string | null) {
     "use server";
     const res = await apiFetch(`/api/me/medications/${medicationId}/discontinue`, {
@@ -80,7 +103,6 @@ export default async function MedsPage() {
     revalidatePath("/me/meds");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function deleteMedication(medicationId: string) {
     "use server";
     const res = await apiFetch(`/api/me/medications/${medicationId}`, {
@@ -131,7 +153,12 @@ export default async function MedsPage() {
           </div>
           <div className="p-5">
             {hasActiveMeds ? (
-              <MedicationGrid medications={activeMeds} />
+              <MedicationsSection
+                medications={activeMeds}
+                updateMedication={updateMedication}
+                discontinueMedication={discontinueMedication}
+                deleteMedication={deleteMedication}
+              />
             ) : (
               <EmptyState
                 title="No active medications"
@@ -150,7 +177,12 @@ export default async function MedsPage() {
               </h2>
             </div>
             <div className="p-5">
-              <MedicationGrid medications={discontinuedMeds} />
+              <MedicationsSection
+                medications={discontinuedMeds}
+                updateMedication={updateMedication}
+                discontinueMedication={discontinueMedication}
+                deleteMedication={deleteMedication}
+              />
             </div>
           </section>
         )}
