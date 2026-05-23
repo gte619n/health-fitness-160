@@ -4,8 +4,11 @@ import com.gte619n.healthfitness.core.auth.CurrentUserProvider;
 import com.gte619n.healthfitness.core.medication.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,22 +23,26 @@ public class MedicationController {
     private final CurrentUserProvider currentUser;
     private final MedicationRepository medications;
     private final MedicationHistoryRepository history;
+    private final AdherenceRepository adherence;
     private final DrugRepository drugs;
 
     public MedicationController(
         CurrentUserProvider currentUser,
         MedicationRepository medications,
         MedicationHistoryRepository history,
+        AdherenceRepository adherence,
         DrugRepository drugs
     ) {
         this.currentUser = currentUser;
         this.medications = medications;
         this.history = history;
+        this.adherence = adherence;
         this.drugs = drugs;
     }
 
     /**
      * List all user medications (optionally filter by status).
+     * Includes 30-day adherence summary for each medication.
      */
     @GetMapping
     public List<MedicationResponse> list(@RequestParam(required = false) MedicationStatus status) {
@@ -44,12 +51,50 @@ public class MedicationController {
             ? medications.findByUserAndStatus(userId, status)
             : medications.findByUser(userId);
 
+        LocalDate today = LocalDate.now();
+        LocalDate thirtyDaysAgo = today.minusDays(30);
+
         return meds.stream()
             .map(m -> {
                 Drug drug = drugs.findById(m.drugId()).orElse(null);
-                return MedicationResponse.from(m, drug);
+                AdherenceSummary summary = calculateAdherenceSummary(
+                    userId, m.medicationId(), thirtyDaysAgo, today
+                );
+                return MedicationResponse.from(m, drug, summary);
             })
             .toList();
+    }
+
+    /**
+     * Calculate 30-day adherence summary for a medication.
+     */
+    private AdherenceSummary calculateAdherenceSummary(
+        String userId, String medicationId, LocalDate from, LocalDate to
+    ) {
+        List<AdherenceLog> logs = adherence.findByDateRange(userId, medicationId, from, to);
+
+        // Build set of dates with recorded doses
+        Set<LocalDate> datesWithDoses = logs.stream()
+            .filter(log -> log.doses() != null && !log.doses().isEmpty())
+            .map(AdherenceLog::date)
+            .collect(Collectors.toSet());
+
+        // Build last30Days list
+        List<AdherenceSummary.DayAdherence> last30Days = new ArrayList<>();
+        LocalDate date = from;
+        int takenCount = 0;
+        int totalDays = 0;
+
+        while (!date.isAfter(to)) {
+            boolean taken = datesWithDoses.contains(date);
+            last30Days.add(new AdherenceSummary.DayAdherence(date, taken));
+            if (taken) takenCount++;
+            totalDays++;
+            date = date.plusDays(1);
+        }
+
+        double percentage = totalDays > 0 ? (takenCount * 100.0) / totalDays : 0;
+        return new AdherenceSummary(last30Days, percentage);
     }
 
     /**
