@@ -20,6 +20,7 @@ export interface Drug {
   imageUrl: string | null;
   imageFallback: string;
   suggestedMarkers: string[];
+  description: string | null;
 }
 
 export interface TimeSlot {

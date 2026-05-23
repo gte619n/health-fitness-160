@@ -70,3 +70,10 @@ app:
     # deploy time. Local dev reads it from the same env var.
     gemini-api-key: ${GEMINI_API_KEY:}
     gemini-model: ${GEMINI_MODEL:gemini-3.5-flash}
+  medications:
+    bucket: ${MEDICATIONS_BUCKET:health-fitness-160-medication-images}
+    # Gemini with Google Search grounding for drug lookup
+    gemini-api-key: ${GEMINI_API_KEY:}
+    gemini-model: ${GEMINI_MODEL:gemini-2.5-flash}
+    # Imagen for medication image generation
+    imagen-model: ${IMAGEN_MODEL:imagen-3.0-generate-002}

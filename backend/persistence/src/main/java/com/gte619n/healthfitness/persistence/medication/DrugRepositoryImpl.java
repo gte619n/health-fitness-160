@@ -110,6 +110,7 @@ public class DrugRepositoryImpl implements DrugRepository {
             snapshot.getString("imageUrl"),
             snapshot.getString("imageFallback"),
             (List<String>) snapshot.get("suggestedMarkers"),
+            snapshot.getString("description"),
             toInstant(snapshot.get("createdAt")),
             toInstant(snapshot.get("updatedAt"))
         );
@@ -127,6 +128,7 @@ public class DrugRepositoryImpl implements DrugRepository {
         body.put("imageUrl", drug.imageUrl());
         body.put("imageFallback", drug.imageFallback());
         body.put("suggestedMarkers", drug.suggestedMarkers());
+        body.put("description", drug.description());
         body.put("updatedAt", serverTimestamp());
         if (isNew) {
             body.put("createdAt", serverTimestamp());

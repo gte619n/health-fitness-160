@@ -18,6 +18,7 @@ public record Drug(
     String imageUrl,                // GCS CDN URL (null if generating)
     String imageFallback,           // Generic form image URL
     List<String> suggestedMarkers,  // ["TESTOSTERONE", "FREE_TESTOSTERONE"]
+    String description,             // Brief description of the drug
     Instant createdAt,
     Instant updatedAt
 ) {}

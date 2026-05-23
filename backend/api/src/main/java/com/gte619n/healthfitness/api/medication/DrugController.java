@@ -69,6 +69,7 @@ public class DrugController {
             null,   // imageUrl - will be set by image generation
             fallbackImage,
             body.suggestedMarkers() != null ? body.suggestedMarkers() : List.of(),
+            body.description(),
             Instant.now(),
             Instant.now()
         );
@@ -99,6 +100,7 @@ public class DrugController {
             body.imageUrl() != null ? body.imageUrl() : existing.imageUrl(),
             existing.imageFallback(),
             body.suggestedMarkers() != null ? body.suggestedMarkers() : existing.suggestedMarkers(),
+            body.description() != null ? body.description() : existing.description(),
             existing.createdAt(),
             Instant.now()
         );
@@ -141,7 +143,8 @@ public class DrugController {
         DrugForm form,
         String defaultUnit,
         List<String> commonDoses,
-        List<String> suggestedMarkers
+        List<String> suggestedMarkers,
+        String description
     ) {}
 
     public record UpdateDrugRequest(
@@ -152,6 +155,7 @@ public class DrugController {
         String defaultUnit,
         List<String> commonDoses,
         String imageUrl,
-        List<String> suggestedMarkers
+        List<String> suggestedMarkers,
+        String description
     ) {}
 }

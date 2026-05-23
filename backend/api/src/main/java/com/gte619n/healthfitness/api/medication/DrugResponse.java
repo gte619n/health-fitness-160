@@ -18,7 +18,8 @@ public record DrugResponse(
     List<String> commonDoses,
     String imageUrl,
     String imageFallback,
-    List<String> suggestedMarkers
+    List<String> suggestedMarkers,
+    String description
 ) {
     public static DrugResponse from(Drug d) {
         return new DrugResponse(
@@ -31,7 +32,8 @@ public record DrugResponse(
             d.commonDoses(),
             d.imageUrl(),
             d.imageFallback(),
-            d.suggestedMarkers()
+            d.suggestedMarkers(),
+            d.description()
         );
     }
 }
