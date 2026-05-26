@@ -6,6 +6,7 @@ import type { AdminEquipment, SpecSchema, EquipmentSpecs } from '@/lib/types/gym
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { EditEquipmentModal } from './EditEquipmentModal';
+import { ImageLightbox } from './ImageLightbox';
 import { RegenerateImageModal } from './RegenerateImageModal';
 
 interface PendingEquipmentCardProps {
@@ -35,6 +36,7 @@ export function PendingEquipmentCard({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isRegenOpen, setIsRegenOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const draggable = useDraggable({ id: equipment.equipmentId, data: { equipment } });
   const droppable = useDroppable({ id: `drop-${equipment.equipmentId}`, data: { equipment } });
@@ -49,7 +51,7 @@ export function PendingEquipmentCard({
     setIsProcessing(true);
     try {
       await approve(equipment.equipmentId);
-      toast.success('Equipment approved', { description: 'Image generation started' });
+      toast.success('Equipment approved');
     } catch (e) {
       toast.error('Failed to approve', {
         description: e instanceof Error ? e.message : 'Unknown error',
@@ -81,28 +83,27 @@ export function PendingEquipmentCard({
   }
 
   const isOver = isDragOver ?? droppable.isOver;
+  const isDragging = draggable.isDragging;
   const baseClasses =
     'rounded-lg border bg-surface p-5 transition-shadow ' +
     (isOver
       ? 'border-accent ring-2 ring-accent/50 shadow-lg'
-      : 'border-border-default');
-  const dragStyle = draggable.transform
-    ? {
-        transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)`,
-        zIndex: 50,
-        opacity: 0.9,
-      }
-    : undefined;
+      : 'border-border-default') +
+    (isDragging ? ' opacity-30' : '');
 
   return (
     <>
       <div ref={droppable.setNodeRef} className={baseClasses}>
         <div
           ref={draggable.setNodeRef}
-          style={dragStyle}
           className="flex gap-5"
         >
-          <ImageThumb url={equipment.imageUrl} status={equipment.imageStatus} />
+          <ImageThumb
+            url={equipment.imageUrl}
+            status={equipment.imageStatus}
+            onZoom={(src) => setLightboxSrc(src)}
+            alt={equipment.name}
+          />
 
           <div className="flex-1 min-w-0">
             <div
@@ -184,6 +185,11 @@ export function PendingEquipmentCard({
         getPrompt={getImagePrompt}
         regenerate={regenerate}
       />
+      <ImageLightbox
+        src={lightboxSrc}
+        alt={equipment.name}
+        onClose={() => setLightboxSrc(null)}
+      />
     </>
   );
 }
@@ -191,11 +197,36 @@ export function PendingEquipmentCard({
 function ImageThumb({
   url,
   status,
+  onZoom,
+  alt,
 }: {
   url: string | null;
   status: AdminEquipment['imageStatus'];
+  onZoom: (src: string) => void;
+  alt: string;
 }) {
   if (url) {
+    const isZoomable = status === 'GENERATED';
+    if (isZoomable) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoom(url);
+          }}
+          className="block h-32 w-32 shrink-0 cursor-zoom-in rounded-md border border-border-default p-0"
+          aria-label={`Zoom image for ${alt}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={alt}
+            className="h-full w-full rounded-md object-cover"
+          />
+        </button>
+      );
+    }
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -10,7 +11,41 @@ import {
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type Modifier,
 } from '@dnd-kit/core';
+
+// Pull the cursor (x, y) out of the activator event, regardless of whether it
+// originated from a pointer, mouse, or touch interaction. Avoids depending on
+// `@dnd-kit/utilities`, which isn't a direct dep of this package.
+function getEventCoordinates(event: Event): { x: number; y: number } | null {
+  if ('touches' in event) {
+    const touchEvent = event as TouchEvent;
+    const touch = touchEvent.touches[0] ?? touchEvent.changedTouches[0];
+    if (!touch) return null;
+    return { x: touch.clientX, y: touch.clientY };
+  }
+  if ('clientX' in event && 'clientY' in event) {
+    const mouseEvent = event as MouseEvent;
+    return { x: mouseEvent.clientX, y: mouseEvent.clientY };
+  }
+  return null;
+}
+
+// Snap the drag overlay so the cursor sits at the center of the overlay node
+// instead of at the source element's top-left (dnd-kit's default).
+const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
+  if (!draggingNodeRect || !activatorEvent) return transform;
+  const activatorCoordinates = getEventCoordinates(activatorEvent);
+  if (!activatorCoordinates) return transform;
+  const offsetX = activatorCoordinates.x - draggingNodeRect.left;
+  const offsetY = activatorCoordinates.y - draggingNodeRect.top;
+  return {
+    ...transform,
+    x: transform.x + offsetX - draggingNodeRect.width / 2,
+    y: transform.y + offsetY - draggingNodeRect.height / 2,
+  };
+};
+
 import type { Drug, DrugCategory, DrugForm } from '@/lib/types/medication';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
@@ -43,6 +78,10 @@ export function AdminDrugClient({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return drugs;
@@ -99,6 +138,7 @@ export function AdminDrugClient({
 
   return (
     <DndContext
+      id="admin-drug-dnd"
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragOver={(e) => setOverId(e.over ? String(e.over.id) : null)}
@@ -150,19 +190,33 @@ export function AdminDrugClient({
         )}
       </div>
 
-      <DragOverlay>
-        {activeDrug ? (
-          <div className="rounded-lg border-2 border-accent bg-surface p-4 shadow-2xl opacity-95">
-            <p className="text-sm font-semibold text-primary">{activeDrug.name}</p>
-            {activeDrug.aliases.length > 0 ? (
-              <p className="text-xs text-secondary">{activeDrug.aliases.join(', ')}</p>
-            ) : null}
-            <p className="mt-1 text-[10px] uppercase tracking-wider text-accent">
-              Drop on another drug to merge
-            </p>
-          </div>
-        ) : null}
-      </DragOverlay>
+      {mounted &&
+        createPortal(
+          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+            {activeDrug ? <DragPreview drug={activeDrug} /> : null}
+          </DragOverlay>,
+          document.body,
+        )}
     </DndContext>
   );
 }
+
+function DragPreview({ drug }: { drug: Drug }) {
+  const imageSrc = drug.imageUrl || drug.imageFallback;
+  return (
+    <div className="inline-flex max-w-xs items-center gap-2 rounded-full border border-border-default bg-surface px-3 py-1.5 shadow-md">
+      {imageSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageSrc}
+          alt=""
+          className="h-6 w-6 shrink-0 rounded-full border border-border-default object-cover"
+        />
+      ) : (
+        <div className="h-6 w-6 shrink-0 rounded-full border border-dashed border-border-default" />
+      )}
+      <span className="truncate text-xs font-medium text-primary">{drug.name}</span>
+    </div>
+  );
+}
+

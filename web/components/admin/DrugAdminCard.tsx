@@ -7,6 +7,7 @@ import { CATEGORY_LABELS, FORM_LABELS } from '@/lib/types/medication';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { EditDrugModal } from './EditDrugModal';
+import { ImageLightbox } from './ImageLightbox';
 import { RegenerateImageModal } from './RegenerateImageModal';
 
 interface Props {
@@ -34,6 +35,7 @@ export function DrugAdminCard({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isRegenOpen, setIsRegenOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const draggable = useDraggable({ id: drug.drugId, data: { drug } });
   const droppable = useDroppable({ id: `drop-${drug.drugId}`, data: { drug } });
@@ -60,32 +62,46 @@ export function DrugAdminCard({
   }
 
   const isOver = isDragOver ?? droppable.isOver;
+  const isDragging = draggable.isDragging;
   const baseClasses =
     'rounded-lg border bg-surface p-5 transition-shadow ' +
     (isOver
       ? 'border-accent ring-2 ring-accent/50 shadow-lg'
-      : 'border-border-default');
-  const dragStyle = draggable.transform
-    ? {
-        transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)`,
-        zIndex: 50,
-        opacity: 0.9,
-      }
-    : undefined;
+      : 'border-border-default') +
+    (isDragging ? ' opacity-30' : '');
 
   const imageSrc = drug.imageUrl || drug.imageFallback;
 
   return (
     <>
       <div ref={droppable.setNodeRef} className={baseClasses}>
-        <div ref={draggable.setNodeRef} style={dragStyle} className="flex gap-5">
+        <div ref={draggable.setNodeRef} className="flex gap-5">
           {imageSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt=""
-              className="h-32 w-32 shrink-0 rounded-md border border-border-default object-cover"
-            />
+            drug.imageUrl ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (drug.imageUrl) setLightboxSrc(drug.imageUrl);
+                }}
+                className="block h-32 w-32 shrink-0 cursor-zoom-in rounded-md border border-border-default p-0"
+                aria-label={`Zoom image for ${drug.name}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageSrc}
+                  alt={drug.name}
+                  className="h-full w-full rounded-md object-cover"
+                />
+              </button>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageSrc}
+                alt=""
+                className="h-32 w-32 shrink-0 rounded-md border border-border-default object-cover"
+              />
+            )
           ) : (
             <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-md border border-dashed border-border-default bg-canvas text-tertiary">
               <i className="ti ti-pill text-2xl" aria-hidden />
@@ -172,6 +188,11 @@ export function DrugAdminCard({
         onStarted={() => setIsRegenOpen(false)}
         getPrompt={getImagePrompt}
         regenerate={regenerate}
+      />
+      <ImageLightbox
+        src={lightboxSrc}
+        alt={drug.name}
+        onClose={() => setLightboxSrc(null)}
       />
     </>
   );
