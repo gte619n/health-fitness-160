@@ -1,6 +1,11 @@
 steps:
   - id: build-image
     name: gcr.io/cloud-builders/docker
+    # Triggered builds check out the full repo at /workspace; dir scopes
+    # the docker build context to /workspace/web so the Dockerfile
+    # resolves correctly. (Manual `gcloud builds submit web/` uploads
+    # just the subdir as /workspace, where this `dir` is a no-op.)
+    dir: web
     args:
       - build
       - -t

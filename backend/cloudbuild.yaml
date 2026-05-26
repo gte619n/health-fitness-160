@@ -1,6 +1,11 @@
 steps:
   - id: build-image
     name: gcr.io/cloud-builders/docker
+    # Triggered builds check out the full repo at /workspace; dir scopes
+    # the docker build context to /workspace/backend so the Dockerfile
+    # resolves correctly. (Manual `gcloud builds submit backend/` uploads
+    # just the subdir as /workspace, where this `dir` is a no-op.)
+    dir: backend
     args:
       - build
       - -t
