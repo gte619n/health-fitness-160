@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AdminEquipment, SpecSchema, EquipmentCategory, EquipmentSpecs } from '@/lib/types/gym';
 import { EQUIPMENT_CATEGORIES as CATEGORIES } from '@/lib/types/gym';
 import { useToast } from '@/components/ui/Toast';
@@ -14,11 +14,31 @@ interface EditEquipmentModalProps {
     equipmentId: string,
     data: { name: string; category: string; subcategory: string; specSchema: SpecSchema; specs: EquipmentSpecs },
   ) => Promise<void>;
+  // Optional. When provided, an extra "Regenerate image" button is rendered in
+  // the footer. The parent decides what to do (typically close this modal and
+  // open RegenerateImageModal).
+  onRegenerate?: () => void;
 }
 
-export function EditEquipmentModal({ equipment, isOpen, onClose, onSave, update }: EditEquipmentModalProps) {
+export function EditEquipmentModal({ equipment, isOpen, onClose, onSave, update, onRegenerate }: EditEquipmentModalProps) {
   const toast = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  // Track whether the mousedown landed on the backdrop so we only close on a
+  // true backdrop click. Without this, a text-selection drag that starts
+  // inside the dialog and releases over the backdrop would close the modal.
+  const downOnBackdropRef = useRef(false);
+
+  function handleBackdropMouseDown(e: React.MouseEvent) {
+    downOnBackdropRef.current = e.target === e.currentTarget;
+  }
+
+  function handleBackdropClick(e: React.MouseEvent) {
+    const downOnBackdrop = downOnBackdropRef.current;
+    downOnBackdropRef.current = false;
+    if (downOnBackdrop && e.target === e.currentTarget) {
+      onClose();
+    }
+  }
 
   // Form state - use Record<string, unknown> for easier manipulation
   const [name, setName] = useState(equipment.name);
@@ -75,10 +95,12 @@ export function EditEquipmentModal({ equipment, isOpen, onClose, onSave, update 
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-canvas/75 backdrop-blur-sm"
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
     >
       <div
         className="w-[600px] max-h-[90vh] overflow-y-auto rounded-lg border border-border-default bg-surface p-6 shadow-[0_24px_64px_rgba(0,0,0,0.16)]"
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-4 text-xl font-semibold text-primary">Edit Equipment</h2>
@@ -166,7 +188,17 @@ export function EditEquipmentModal({ equipment, isOpen, onClose, onSave, update 
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex items-center justify-end gap-2">
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={isSaving}
+              className="mr-auto cursor-pointer rounded-md border border-border-default bg-canvas px-4 py-2 text-sm font-medium text-primary hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Regenerate image
+            </button>
+          )}
           <button
             onClick={onClose}
             disabled={isSaving}
