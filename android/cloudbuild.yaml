@@ -8,18 +8,20 @@ steps:
       - -c
       - |
         set -euo pipefail
+        # --out-file writes raw bytes directly; needed for the binary
+        # PKCS12 keystore so gcloud's stdout codec can't mangle it.
         gcloud secrets versions access latest \
           --secret=android-release-keystore --project=$PROJECT_ID \
-          > /workspace/release.keystore
+          --out-file=/workspace/release.keystore
         gcloud secrets versions access latest \
           --secret=android-release-keystore-password --project=$PROJECT_ID \
-          > /workspace/keystore.password
+          --out-file=/workspace/keystore.password
         gcloud secrets versions access latest \
           --secret=android-release-key-password --project=$PROJECT_ID \
-          > /workspace/key.password
+          --out-file=/workspace/key.password
         gcloud secrets versions access latest \
           --secret=oauth-web-client-id --project=$PROJECT_ID \
-          > /workspace/web-oauth-client-id
+          --out-file=/workspace/web-oauth-client-id
 
   # TODO(infra): replace cimg/android with a custom builder image baked
   # once and pushed to this project's Artifact Registry, with USER root so
