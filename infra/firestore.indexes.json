@@ -52,5 +52,13 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "locations",
+      "fieldPath": "equipmentIds",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "arrayConfig": "CONTAINS" }
+      ]
+    }
+  ]
 }

@@ -100,10 +100,26 @@ public class EquipmentImageService implements EquipmentImageGenerator {
                 byte[] bytes = callGemini(prompt, equipment.equipmentId());
 
                 if (bytes != null && bytes.length > 0) {
+                    // Capture the previous image URL before we overwrite the
+                    // equipment record — we'll best-effort delete that GCS
+                    // object AFTER the new URL is durably persisted.
+                    String oldUrl = equipment.imageUrl();
                     String url = storage.upload(equipment.equipmentId(), bytes);
                     persistImageResult(equipment, url, ImageStatus.GENERATED);
                     log.info("Generated image for equipment {}: {}",
                         equipment.equipmentId(), url);
+                    // Fire-and-forget cleanup of the old object. Ordering
+                    // matters: persist new URL first, then delete old —
+                    // a crash mid-flow leaves the new image live and at
+                    // worst orphans a stale object.
+                    if (oldUrl != null && !oldUrl.equals(url)) {
+                        try {
+                            storage.deleteByUrl(oldUrl);
+                        } catch (Exception cleanupErr) {
+                            log.warn("Stale equipment image cleanup failed for {}: {}",
+                                equipment.equipmentId(), cleanupErr.getMessage());
+                        }
+                    }
                 } else {
                     persistImageResult(equipment, null, ImageStatus.FAILED);
                     log.warn("Image generation returned empty bytes for equipment {}",

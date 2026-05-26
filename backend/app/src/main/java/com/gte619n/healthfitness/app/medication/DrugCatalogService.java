@@ -323,6 +323,10 @@ public class DrugCatalogService {
             }
 
             if (imageBytes.isPresent()) {
+                // Capture the previous URL before we overwrite; we'll
+                // best-effort delete that GCS object AFTER the new URL
+                // is durably persisted to Firestore.
+                String oldUrl = drug.imageUrl();
                 String imageUrl = imageStorage.upload(drugId, imageBytes.get());
 
                 // Update drug with image URL
@@ -343,6 +347,15 @@ public class DrugCatalogService {
                     drug.aliasOfDrugId()
                 );
                 drugs.save(updated);
+                // Fire-and-forget cleanup of the prior object. Order
+                // matters: persist new URL first, then delete old.
+                if (oldUrl != null && !oldUrl.equals(imageUrl)) {
+                    try {
+                        imageStorage.deleteByUrl(oldUrl);
+                    } catch (Exception cleanupErr) {
+                        System.err.println("Stale drug image cleanup failed for " + drugId + ": " + cleanupErr.getMessage());
+                    }
+                }
                 return imageUrl;
             }
         } catch (Exception e) {
@@ -390,6 +403,9 @@ public class DrugCatalogService {
 
                     // Update drug with image URL
                     drugs.findById(drugId).ifPresent(drug -> {
+                        // Capture old URL (may be null for first-time
+                        // generation) before we overwrite.
+                        String oldUrl = drug.imageUrl();
                         Drug updated = new Drug(
                             drug.drugId(),
                             drug.name(),
@@ -408,6 +424,14 @@ public class DrugCatalogService {
                         );
                         drugs.save(updated);
                         System.out.println("Image generated and saved for " + drugName);
+                        // Best-effort cleanup of the prior object.
+                        if (oldUrl != null && !oldUrl.equals(imageUrl)) {
+                            try {
+                                imageStorage.deleteByUrl(oldUrl);
+                            } catch (Exception cleanupErr) {
+                                System.err.println("Stale drug image cleanup failed for " + drugId + ": " + cleanupErr.getMessage());
+                            }
+                        }
                     });
                 }
             } catch (Exception e) {
@@ -561,6 +585,8 @@ public class DrugCatalogService {
             : imageGenerator.defaultPromptFor(drug);
         Optional<byte[]> bytes = imageGenerator.generateWithPrompt(prompt, drug.name());
         if (bytes.isEmpty()) return null;
+        // Capture old URL before overwrite for best-effort cleanup after persist.
+        String oldUrl = drug.imageUrl();
         String imageUrl = imageStorage.upload(drugId, bytes.get());
         Drug updated = new Drug(
             drug.drugId(),
@@ -579,6 +605,13 @@ public class DrugCatalogService {
             drug.aliasOfDrugId()
         );
         drugs.save(updated);
+        if (oldUrl != null && !oldUrl.equals(imageUrl)) {
+            try {
+                imageStorage.deleteByUrl(oldUrl);
+            } catch (Exception cleanupErr) {
+                System.err.println("Stale drug image cleanup failed for " + drugId + ": " + cleanupErr.getMessage());
+            }
+        }
         return imageUrl;
     }
 

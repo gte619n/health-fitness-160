@@ -19,6 +19,18 @@ public class GlobalExceptionHandler {
 
     public record ErrorResponse(String error, String message, Instant timestamp) {}
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Bad request: {}", ex.getMessage());
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse(
+                "bad_request",
+                ex.getMessage(),
+                Instant.now()
+            ));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
         String exMessage = ex.getMessage();

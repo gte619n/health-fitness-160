@@ -75,7 +75,6 @@ public class AdminEquipmentController {
     @PostMapping("/{equipmentId}/approve")
     public EquipmentResponse approve(@PathVariable String equipmentId) {
         Equipment equipment = equipmentService.approve(equipmentId);
-        imageGenerator.ifPresent(g -> g.generateImageAsync(equipment));
         return EquipmentResponse.from(equipment);
     }
 
