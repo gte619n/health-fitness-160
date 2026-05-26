@@ -21,17 +21,21 @@ steps:
           --secret=oauth-web-client-id --project=$PROJECT_ID \
           > /workspace/web-oauth-client-id
 
-  # TODO(infra): replace mobiledevops/android-sdk-image with a custom builder
-  # image baked once and pushed to this project's Artifact Registry. Pinning
-  # to a private mirror removes the Docker Hub supply-chain dependency.
+  # TODO(infra): replace cimg/android with a custom builder image baked
+  # once and pushed to this project's Artifact Registry, with USER root so
+  # the chown workaround can be removed.
   - id: build-release-apk
-    name: mobiledevops/android-sdk-image:35-jdk-21.0.5
+    name: cimg/android:2026.03.1
     dir: android
     entrypoint: bash
     args:
       - -c
       - |
         set -euo pipefail
+        # cimg/android runs as the unprivileged 'circleci' user but Cloud
+        # Build mounts /workspace with root ownership; rechown so gradle
+        # can write into android/build/.
+        sudo chown -R "$(id -u):$(id -g)" /workspace
         export ANDROID_RELEASE_KEYSTORE=/workspace/release.keystore
         export ANDROID_KEYSTORE_PASSWORD="$(cat /workspace/keystore.password)"
         export ANDROID_KEY_ALIAS=upload
