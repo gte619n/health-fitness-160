@@ -40,6 +40,7 @@ import com.gte619n.healthfitness.mobile.dashboard.viewmodel.CardSwitch
 import com.gte619n.healthfitness.mobile.dashboard.viewmodel.DashboardViewModel
 import com.gte619n.healthfitness.ui.TessetaMark
 import com.gte619n.healthfitness.ui.TessetaMarkVariant
+import com.gte619n.healthfitness.ui.chart.WeightChart
 import com.gte619n.healthfitness.ui.theme.Hf
 import com.gte619n.healthfitness.ui.theme.type
 import java.util.Locale
@@ -357,7 +358,6 @@ fun BodyCompositionHero(summary: WeightSummary?) {
                     series = summary.series.map { it.toFloat() },
                     yMin = summary.yMin.toFloat(),
                     yMax = summary.yMax.toFloat(),
-                    xLabels = summary.xLabels,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

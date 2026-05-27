@@ -1,4 +1,4 @@
-package com.gte619n.healthfitness.mobile.dashboard
+package com.gte619n.healthfitness.ui.chart
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -14,25 +14,24 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.gte619n.healthfitness.domain.dashboard.ChartXLabel
 import com.gte619n.healthfitness.ui.theme.Hf
 
 /**
- * Weight trend chart. IMPL-AND-01 turns the previously-fixture series
- * into parameters so the same widget renders both live and preview
- * data. The 7-day moving-average overlay is still computed here from
- * the input series — keeps `WeightSummary` from carrying redundant data.
+ * Weight trend chart. Promoted from `app/.../dashboard/` into `core-ui`
+ * by IMPL-AND-05 so the dashboard hero and the body-composition overview
+ * screen render the same widget. The 7-day moving-average overlay is
+ * computed here from the input series so callers don't carry redundant
+ * data.
  *
- * `xLabels` are accepted but not rendered as text inside the chart yet
- * (the foldable hero renders the date strip above the chart); the
- * parameter exists so callers can pass through without losing data.
+ * Signature is presentation-only (`series`, `yMin`, `yMax`) — date/x-label
+ * formatting stays in the data layer (`BodyCompositionMapper.buildXLabels`)
+ * and is rendered above/below the chart by the calling screen.
  */
 @Composable
 fun WeightChart(
     series: List<Float>,
     yMin: Float,
     yMax: Float,
-    @Suppress("UNUSED_PARAMETER") xLabels: List<ChartXLabel> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     if (series.isEmpty()) return
