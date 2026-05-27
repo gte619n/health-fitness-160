@@ -59,4 +59,8 @@ dependencies {
     testImplementation(libs.retrofit.moshi)
     testImplementation(libs.moshi)
     testImplementation(libs.moshi.kotlin)
+    // IMPL-AND-03: DrugLookupStreamClient tests need OkHttp SSE directly
+    // (the prod path gets it transitively through core-network's
+    // implementation() dependency).
+    testImplementation(libs.okhttp.sse)
 }
