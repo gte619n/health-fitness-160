@@ -26,13 +26,18 @@ dependencies {
     // refresh semantics that are network-stack concerns.
     implementation(project(":core-domain"))
 
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.moshi)
+    // IMPL-AND-01: feature modules in core-data declare their own
+    // Retrofit interfaces and Moshi-annotated DTOs, so Retrofit + Moshi
+    // are surfaced through `api()` here rather than hidden behind
+    // `implementation()`. OkHttp stays internal — nothing outside this
+    // module should be reaching for it directly.
+    api(libs.retrofit)
+    api(libs.retrofit.moshi)
+    api(libs.moshi)
+    api(libs.moshi.kotlin)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.okhttp.sse)
-    implementation(libs.moshi)
-    implementation(libs.moshi.kotlin)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.hilt.android)
