@@ -20,24 +20,23 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 /**
- * MockWebServer-driven HTTP contract tests for the three dashboard
- * endpoints. Replaces both the "Moshi can round-trip a recorded payload"
- * test and the per-repo tests in the spec — same coverage, less surface.
+ * MockWebServer-driven HTTP contract tests for the dashboard's remaining
+ * endpoints (blood readings + today's doses). The body-composition
+ * coverage moved to the canonical
+ * `BodyCompositionRepository` integration paths in Round 2 Stage C;
+ * see `BodyCompositionHeroDisplayTest` for the math-layer coverage.
  */
 class DashboardApiHttpTest {
 
     private lateinit var server: MockWebServer
     private lateinit var api: DashboardApi
-    private lateinit var bodyCompRepo: BodyCompositionRepositoryImpl
     private lateinit var bloodRepo: BloodMarkerSummaryRepositoryImpl
     private lateinit var dosesRepo: TodaysDosesRepositoryImpl
 
@@ -73,7 +72,6 @@ class DashboardApiHttpTest {
                 override val baseUrl: String = server.url("/").toString()
             },
         )
-        bodyCompRepo = BodyCompositionRepositoryImpl(api, Dispatchers.Unconfined)
         bloodRepo = BloodMarkerSummaryRepositoryImpl(bloodReading, bloodReports, Dispatchers.Unconfined)
         dosesRepo = TodaysDosesRepositoryImpl(api, Dispatchers.Unconfined)
     }
@@ -81,55 +79,6 @@ class DashboardApiHttpTest {
     @After
     fun tearDown() {
         server.shutdown()
-    }
-
-    @Test
-    fun `body composition empty payload returns null`() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
-        val summary = bodyCompRepo.loadRecent()
-        assertNull(summary)
-    }
-
-    @Test
-    fun `body composition realistic payload converts kg to lb and derives lean mass`() = runBlocking {
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
-                [
-                  { "recordId": "1", "metric": "WEIGHT_KG", "value": 90.0,
-                    "sampleTime": "2026-04-01T07:00:00Z",
-                    "sourcePlatform": "scale", "recordingMethod": null },
-                  { "recordId": "2", "metric": "WEIGHT_KG", "value": 88.5,
-                    "sampleTime": "2026-05-01T07:00:00Z",
-                    "sourcePlatform": "scale", "recordingMethod": null },
-                  { "recordId": "3", "metric": "WEIGHT_KG", "value": 88.0,
-                    "sampleTime": "2026-05-20T07:00:00Z",
-                    "sourcePlatform": "scale", "recordingMethod": null },
-                  { "recordId": "4", "metric": "BODY_FAT_PERCENT", "value": 17.0,
-                    "sampleTime": "2026-05-20T08:00:00Z",
-                    "sourcePlatform": "scale", "recordingMethod": null }
-                ]
-                """.trimIndent(),
-            ),
-        )
-        val summary = bodyCompRepo.loadRecent()
-        assertNotNull(summary)
-        summary!!
-        // 88 kg ≈ 194.0 lb
-        assertEquals(194.0, summary.latestLb, 0.1)
-        assertEquals(17.0, summary.latestBodyFatPct!!, 0.001)
-        // Lean = 194.0 * (1 - 0.17) ≈ 161.0
-        assertEquals(161.0, summary.latestLeanMassLb!!, 0.5)
-        // Three weight points are below the 30-point downsample threshold.
-        assertEquals(3, summary.series.size)
-    }
-
-    @Test
-    fun `body composition HTTP 500 surfaces as exception`() {
-        server.enqueue(MockResponse().setResponseCode(500))
-        assertThrows(HttpException::class.java) {
-            runBlocking { bodyCompRepo.loadRecent() }
-        }
     }
 
     @Test

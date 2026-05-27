@@ -4,14 +4,16 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Canonical body-composition domain models. IMPL-AND-05 introduces this
- * package; IMPL-AND-01 already shipped its own variant under
- * `domain.dashboard` (WeightSummary, BodyMetric, BodyCompositionPoint)
- * for the dashboard hero. We keep the dashboard typing intact (it's wired
- * end-to-end with mappers and tests) and use these richer types for the
- * dedicated feature module's overview / DEXA paths. A future stage can
- * consolidate the two; see the Stage 05 note in
- * `docs/plans/android-impl-questions.md`.
+ * Canonical body-composition domain models. Single source of truth for
+ * the body-composition surface — consumed by both the dedicated feature
+ * module's overview / DEXA screens and the dashboard hero card.
+ *
+ * IMPL-AND-05 introduced this package; Round 2 Stage C retired the
+ * earlier IMPL-AND-01 dashboard-local variant under
+ * `domain.dashboard.*` (`WeightSummary`, `BodyMetric`,
+ * `BodyCompositionPoint`, `ChartXLabel`). The lb-shaped chart view
+ * the hero card renders is now derived from a `BodyCompositionSnapshot`
+ * via `data.bodycomposition.WeightHeroDisplay.from(snapshot)`.
  */
 
 /** Mirrors the backend's `BodyCompositionMetric` enum. */

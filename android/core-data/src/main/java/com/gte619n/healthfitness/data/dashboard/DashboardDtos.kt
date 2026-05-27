@@ -9,11 +9,11 @@ import java.time.LocalDate
  * the reflective Moshi adapter works without `@Json(name=...)` overrides
  * (see `MoshiContractTest`).
  *
+ * Round 2 Stage C: the body-composition DTO + endpoint moved to
+ * `data.bodycomposition.BodyCompositionReadingDto`; the canonical
+ * repository owns the wire shape for that surface now.
+ *
  * The backend response shapes verified:
- *   - GET /api/me/body-composition →
- *     [{ recordId, metric, value, sampleTime, sourcePlatform, recordingMethod }]
- *     where `metric` is the BodyCompositionMetric enum name
- *     (WEIGHT_KG | BODY_FAT_PERCENT | LEAN_MASS_KG | BMI).
  *   - GET /api/me/blood →
  *     [{ readingId, marker, value, unit, sampleDate, labSource, notes,
  *        reference: { unit, orientation, goodThreshold, displayMin, displayMax } }]
@@ -24,19 +24,6 @@ import java.time.LocalDate
  *     where `window` is the TimeWindow enum name
  *     (MORNING | AFTERNOON | EVENING | BEDTIME).
  */
-
-// Reflective Moshi adapter (KotlinJsonAdapterFactory) handles the
-// (de)serialisation — no `generateAdapter = true` because IMPL-AND-00
-// didn't wire moshi-kotlin-codegen into KSP. Field names match the
-// backend exactly, so no @Json(name=...) overrides are needed either.
-internal data class BodyCompositionDto(
-    val recordId: String,
-    val metric: String,
-    val value: Double,
-    val sampleTime: Instant,
-    val sourcePlatform: String?,
-    val recordingMethod: String?,
-)
 
 // Reflective Moshi adapter (KotlinJsonAdapterFactory) handles the
 // (de)serialisation — no `generateAdapter = true` because IMPL-AND-00

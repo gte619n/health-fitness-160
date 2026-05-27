@@ -9,28 +9,16 @@ import com.gte619n.healthfitness.domain.blood.MarkerCatalog
 import com.gte619n.healthfitness.domain.blood.ReferenceRange
 import com.gte619n.healthfitness.domain.dashboard.BloodMarkerSummary
 import com.gte619n.healthfitness.domain.dashboard.BloodMarkerSummaryRepository
-import com.gte619n.healthfitness.domain.dashboard.BodyCompositionRepository
 import com.gte619n.healthfitness.domain.dashboard.HistoryPoint
 import com.gte619n.healthfitness.domain.dashboard.MarkerTone
 import com.gte619n.healthfitness.domain.dashboard.TodaysDoseSummary
 import com.gte619n.healthfitness.domain.dashboard.TodaysDosesRepository
-import com.gte619n.healthfitness.domain.dashboard.WeightSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
-
-@Singleton
-internal class BodyCompositionRepositoryImpl @Inject constructor(
-    private val api: DashboardApi,
-    @IoDispatcher private val io: CoroutineDispatcher,
-) : BodyCompositionRepository {
-    override suspend fun loadRecent(): WeightSummary? = withContext(io) {
-        BodyCompositionMapper.toWeightSummary(api.bodyComposition())
-    }
-}
 
 /**
  * IMPL-AND-04 rewires the dashboard blood panel onto the same
@@ -42,6 +30,10 @@ internal class BodyCompositionRepositoryImpl @Inject constructor(
  * The output type stays [BloodMarkerSummary] so the existing
  * `BloodPanel` composable + `DashboardViewModel` are untouched —
  * only the data source changes.
+ *
+ * Round 2 Stage C: the body-composition repo previously co-located
+ * here moved to `data.bodycomposition.BodyCompositionRepositoryImpl`;
+ * the dashboard hero now consumes the canonical snapshot Flow.
  */
 @Singleton
 internal class BloodMarkerSummaryRepositoryImpl @Inject constructor(

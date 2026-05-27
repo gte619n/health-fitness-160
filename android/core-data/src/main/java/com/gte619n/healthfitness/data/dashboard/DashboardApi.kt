@@ -3,15 +3,15 @@ package com.gte619n.healthfitness.data.dashboard
 import retrofit2.http.GET
 
 /**
- * Retrofit service for the three dashboard endpoints. Internal so the
- * Compose layer can't reach for it directly; everything flows through
- * the repositories.
+ * Retrofit service for the dashboard's remaining own endpoints
+ * (blood readings + today's doses). The body-composition endpoint
+ * moved to `data.bodycomposition.BodyCompositionApi` in Round 2
+ * Stage C — the canonical repository fetches readings itself.
+ *
+ * Internal so the Compose layer can't reach for it directly;
+ * everything flows through the repositories.
  */
 internal interface DashboardApi {
-
-    /** Full body-composition history (server returns all readings). */
-    @GET("api/me/body-composition")
-    suspend fun bodyComposition(): List<BodyCompositionDto>
 
     /** Full blood-reading history. */
     @GET("api/me/blood")

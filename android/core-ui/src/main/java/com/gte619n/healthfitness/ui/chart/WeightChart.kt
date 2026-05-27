@@ -24,8 +24,9 @@ import com.gte619n.healthfitness.ui.theme.Hf
  * data.
  *
  * Signature is presentation-only (`series`, `yMin`, `yMax`) — date/x-label
- * formatting stays in the data layer (`BodyCompositionMapper.buildXLabels`)
- * and is rendered above/below the chart by the calling screen.
+ * formatting stays in the data layer (`WeightHeroDisplay.buildXLabels`,
+ * Round 2 Stage C) and is rendered above/below the chart by the calling
+ * screen.
  */
 @Composable
 fun WeightChart(

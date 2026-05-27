@@ -1,22 +1,16 @@
 package com.gte619n.healthfitness.domain.dashboard
 
 /**
- * Repository contracts the dashboard ViewModel depends on. Three sources
- * are deliberately split — the ViewModel exposes per-card sub-states so
- * a slow blood-panel fetch never blocks the weight chart.
+ * Repository contracts the dashboard ViewModel depends on. The body
+ * composition source moved to the canonical
+ * `com.gte619n.healthfitness.domain.bodycomposition.BodyCompositionRepository`
+ * in Round 2 Stage C — the ViewModel now consumes that snapshot Flow
+ * directly. Blood + today's doses still split per-card so a slow
+ * blood-panel fetch never blocks the rest of the dashboard.
  *
  * Implementations live in `core-data`; tests use in-memory fakes that
  * satisfy these interfaces.
  */
-
-interface BodyCompositionRepository {
-    /**
-     * Latest body composition window for the user.
-     * @return materialised [WeightSummary] or `null` if the user has no
-     *   weight readings at all (empty backend response).
-     */
-    suspend fun loadRecent(): WeightSummary?
-}
 
 interface BloodMarkerSummaryRepository {
     /**
