@@ -32,4 +32,10 @@ dependencies {
     api(libs.compose.ui.text.google.fonts)
     api(libs.compose.material.icons.extended)
     debugImplementation(libs.compose.ui.tooling)
+
+    // IMPL-AND-00: Coil singleton ImageLoader is wired in `app/`; core-ui
+    // exposes `HfAsyncImage` so feature modules import it from a single
+    // place. Coroutines is direct so the snackbar channel/scope compile.
+    api(libs.coil.compose)
+    implementation(libs.kotlinx.coroutines.android)
 }
