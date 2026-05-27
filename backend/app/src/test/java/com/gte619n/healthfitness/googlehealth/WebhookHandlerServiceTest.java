@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionMeasurement;
 import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionMetric;
 import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionRepository;
+import com.gte619n.healthfitness.core.goals.events.MetricChangedPublisher;
 import com.gte619n.healthfitness.core.user.User;
 import com.gte619n.healthfitness.core.user.UserRepository;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthClient;
@@ -30,6 +31,7 @@ class WebhookHandlerServiceTest {
     private BodyCompositionRepository measurements;
     private AccessTokenService tokens;
     private GoogleHealthClient googleHealth;
+    private MetricChangedPublisher metricChangedPublisher;
     private WebhookHandlerService handler;
 
     private static final Instant FROM = Instant.parse("2026-05-22T07:45:00Z");
@@ -41,7 +43,8 @@ class WebhookHandlerServiceTest {
         measurements = Mockito.mock(BodyCompositionRepository.class);
         tokens = Mockito.mock(AccessTokenService.class);
         googleHealth = Mockito.mock(GoogleHealthClient.class);
-        handler = new WebhookHandlerService(users, measurements, tokens, googleHealth);
+        metricChangedPublisher = Mockito.mock(MetricChangedPublisher.class);
+        handler = new WebhookHandlerService(users, measurements, tokens, googleHealth, metricChangedPublisher);
 
         when(users.findByHealthUserId("h-1")).thenReturn(Optional.of(
             new User("u-1", "u@example.com", "U", null, null, Instant.EPOCH, Instant.EPOCH)));

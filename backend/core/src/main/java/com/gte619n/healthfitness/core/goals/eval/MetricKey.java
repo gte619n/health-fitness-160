@@ -1,5 +1,8 @@
 package com.gte619n.healthfitness.core.goals.eval;
 
+import com.gte619n.healthfitness.core.blood.BloodMarker;
+import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionMetric;
+
 /**
  * The closed set of metric keys the Step evaluator understands.
  *
@@ -56,5 +59,40 @@ public enum MetricKey {
             }
         }
         return null;
+    }
+
+    /**
+     * Map a {@link BloodMarker} to its {@link MetricKey} equivalent.
+     *
+     * Only markers that have an entry in the Goals metric registry are
+     * mapped. Markers we track for clinical context (HDL, triglycerides,
+     * total cholesterol, fasting glucose) are not Goals metrics today —
+     * return {@code null} so callers can skip publishing.
+     */
+    public static MetricKey fromBloodMarker(BloodMarker marker) {
+        if (marker == null) return null;
+        return switch (marker) {
+            case LDL -> BLOOD_LDL;
+            case APO_B -> BLOOD_APOB;
+            case HBA1C -> BLOOD_HBA1C;
+            case HS_CRP -> BLOOD_HS_CRP;
+            default -> null; // HDL, TRIGLYCERIDES, TOTAL_CHOLESTEROL, FASTING_GLUCOSE
+        };
+    }
+
+    /**
+     * Map a {@link BodyCompositionMetric} to its {@link MetricKey} equivalent.
+     *
+     * BMI is not in the Goals metric registry — return {@code null} so
+     * callers can skip publishing.
+     */
+    public static MetricKey fromBodyCompositionMetric(BodyCompositionMetric metric) {
+        if (metric == null) return null;
+        return switch (metric) {
+            case WEIGHT_KG -> BODY_WEIGHT;
+            case BODY_FAT_PERCENT -> BODY_BODY_FAT_PCT;
+            case LEAN_MASS_KG -> BODY_LEAN_MASS;
+            default -> null; // BMI
+        };
     }
 }

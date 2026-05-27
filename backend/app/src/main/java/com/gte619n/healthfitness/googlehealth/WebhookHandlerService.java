@@ -2,14 +2,18 @@ package com.gte619n.healthfitness.googlehealth;
 
 import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionMeasurement;
 import com.gte619n.healthfitness.core.bodycomposition.BodyCompositionRepository;
+import com.gte619n.healthfitness.core.goals.eval.MetricKey;
+import com.gte619n.healthfitness.core.goals.events.MetricChangedPublisher;
 import com.gte619n.healthfitness.core.user.User;
 import com.gte619n.healthfitness.core.user.UserRepository;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthClient;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataPoint;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataType;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,17 +31,20 @@ public class WebhookHandlerService {
     private final BodyCompositionRepository measurements;
     private final AccessTokenService tokens;
     private final GoogleHealthClient googleHealth;
+    private final MetricChangedPublisher metricChangedPublisher;
 
     public WebhookHandlerService(
         UserRepository users,
         BodyCompositionRepository measurements,
         AccessTokenService tokens,
-        GoogleHealthClient googleHealth
+        GoogleHealthClient googleHealth,
+        MetricChangedPublisher metricChangedPublisher
     ) {
         this.users = users;
         this.measurements = measurements;
         this.tokens = tokens;
         this.googleHealth = googleHealth;
+        this.metricChangedPublisher = metricChangedPublisher;
     }
 
     public void handle(Notification notification) {
@@ -67,6 +74,13 @@ public class WebhookHandlerService {
         measurements.saveAll(measurementsList);
         log.info("Webhook UPSERT user={} type={} stored={}",
             userId, n.dataType, measurementsList.size());
+        // Publish after save; collect distinct metric keys from the saved measurements.
+        Set<MetricKey> keys = new LinkedHashSet<>();
+        for (BodyCompositionMeasurement m : measurementsList) {
+            MetricKey key = MetricKey.fromBodyCompositionMetric(m.metric());
+            if (key != null) keys.add(key);
+        }
+        metricChangedPublisher.publishAll(userId, keys);
     }
 
     private void handleDelete(String userId, Notification n) {
@@ -74,6 +88,11 @@ public class WebhookHandlerService {
             userId, n.dataType.toMetric(), n.intervalStart, n.intervalEnd);
         log.info("Webhook DELETE user={} type={} range=[{},{}]",
             userId, n.dataType, n.intervalStart, n.intervalEnd);
+        // Publish after delete — the metric value may have changed if rows were removed.
+        MetricKey key = MetricKey.fromBodyCompositionMetric(n.dataType.toMetric());
+        if (key != null) {
+            metricChangedPublisher.publish(userId, key);
+        }
     }
 
     private static BodyCompositionMeasurement toMeasurement(String userId, GoogleHealthDataPoint dp) {

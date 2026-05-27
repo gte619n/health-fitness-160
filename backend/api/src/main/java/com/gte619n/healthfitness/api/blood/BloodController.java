@@ -5,6 +5,8 @@ import com.gte619n.healthfitness.core.blood.BloodMarker;
 import com.gte619n.healthfitness.core.blood.BloodReading;
 import com.gte619n.healthfitness.core.blood.BloodReadingRepository;
 import com.gte619n.healthfitness.core.blood.BloodReferenceRanges;
+import com.gte619n.healthfitness.core.goals.eval.MetricKey;
+import com.gte619n.healthfitness.core.goals.events.MetricChangedPublisher;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -23,13 +25,16 @@ public class BloodController {
 
     private final CurrentUserProvider currentUser;
     private final BloodReadingRepository readings;
+    private final MetricChangedPublisher metricChangedPublisher;
 
     public BloodController(
         CurrentUserProvider currentUser,
-        BloodReadingRepository readings
+        BloodReadingRepository readings,
+        MetricChangedPublisher metricChangedPublisher
     ) {
         this.currentUser = currentUser;
         this.readings = readings;
+        this.metricChangedPublisher = metricChangedPublisher;
     }
 
     @GetMapping
@@ -70,6 +75,11 @@ public class BloodController {
             null
         );
         readings.save(reading);
+        // Publish after the save so that if save() throws the event is never fired.
+        MetricKey metricKey = MetricKey.fromBloodMarker(marker);
+        if (metricKey != null) {
+            metricChangedPublisher.publish(userId, metricKey);
+        }
         return ResponseEntity.status(201).body(BloodReadingResponse.from(reading));
     }
 

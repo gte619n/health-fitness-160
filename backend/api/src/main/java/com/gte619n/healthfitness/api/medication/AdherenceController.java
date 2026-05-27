@@ -1,6 +1,8 @@
 package com.gte619n.healthfitness.api.medication;
 
 import com.gte619n.healthfitness.core.auth.CurrentUserProvider;
+import com.gte619n.healthfitness.core.goals.eval.MetricKey;
+import com.gte619n.healthfitness.core.goals.events.MetricChangedPublisher;
 import com.gte619n.healthfitness.core.medication.*;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,17 +23,20 @@ public class AdherenceController {
     private final MedicationRepository medications;
     private final AdherenceRepository adherence;
     private final DrugRepository drugs;
+    private final MetricChangedPublisher metricChangedPublisher;
 
     public AdherenceController(
         CurrentUserProvider currentUser,
         MedicationRepository medications,
         AdherenceRepository adherence,
-        DrugRepository drugs
+        DrugRepository drugs,
+        MetricChangedPublisher metricChangedPublisher
     ) {
         this.currentUser = currentUser;
         this.medications = medications;
         this.adherence = adherence;
         this.drugs = drugs;
+        this.metricChangedPublisher = metricChangedPublisher;
     }
 
     /**
@@ -99,6 +104,7 @@ public class AdherenceController {
         );
 
         adherence.save(log);
+        metricChangedPublisher.publish(userId, MetricKey.MEDS_ADHERENCE_30D);
         return ResponseEntity.status(201).body(AdherenceLogResponse.from(log));
     }
 
@@ -143,6 +149,8 @@ public class AdherenceController {
             );
             adherence.save(updated);
         }
+        // Publish after whichever write path ran — 30-day rolling metric changed.
+        metricChangedPublisher.publish(userId, MetricKey.MEDS_ADHERENCE_30D);
 
         return ResponseEntity.noContent().build();
     }

@@ -6,9 +6,11 @@ import com.gte619n.healthfitness.core.goals.Step;
 import com.gte619n.healthfitness.core.goals.StepKind;
 import com.gte619n.healthfitness.core.goals.StepMetricBinding;
 import com.gte619n.healthfitness.core.goals.StepRepository;
+import com.gte619n.healthfitness.core.goals.events.MetricChangedEvent;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.util.List;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 /**
@@ -56,6 +58,28 @@ public class StepEvaluationService {
         this.phases = phases;
         this.resolver = resolver;
         this.goalService = goalService;
+    }
+
+    /**
+     * Spring event listener — dispatched synchronously on the writer's
+     * thread after the save completes.
+     *
+     * The try/catch is load-bearing: a Goals bug must NEVER propagate
+     * back to the writing module (BloodController, AdherenceController,
+     * etc.). If the listener fails, we log and return — the writer's
+     * response is unaffected.
+     */
+    @EventListener
+    public void on(MetricChangedEvent event) {
+        try {
+            MetricKey key = MetricKey.fromKey(event.metricKey());
+            if (key == null) return;
+            onMetricChanged(event.userId(), key);
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING,
+                "MetricChanged listener failed for key=" + event.metricKey()
+                    + " user=" + event.userId(), ex);
+        }
     }
 
     /**
