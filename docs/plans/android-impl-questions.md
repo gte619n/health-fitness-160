@@ -613,7 +613,137 @@ IMPL-AND-08 alongside any other deferred snapshot coverage.
 
 ## Stage 06 — Gym & equipment
 
-(no questions yet)
+### Note — bottom nav: Blood dropped, Workouts promoted
+
+**Status:** open — please review.
+
+Stage 03 had `Today / Body / Blood / Meds / More`. With Workouts coming
+back online this IMPL changes it to `Today / Body / Workouts / Meds /
+More` (Blood drops from the bar to the foldable sidebar / dashboard
+panel). Five tappable slots is already pushing the spec's "4 max"
+guidance, so this slot juggling tries to keep the most-touched
+mutating surfaces in the bar. If you'd rather keep Blood (it has the
+multipart-SSE upload surface that benefits from quick access), swap
+Body to More or drop it entirely — the change is a one-line tweak in
+`android/app/src/main/java/com/gte619n/healthfitness/mobile/navigation/NavDestinations.kt`'s
+`BottomNavDestinations` list. The foldable sidebar keeps all six.
+
+### Note — Equipment `specs` Polymorphic adapter swapped for a map-projecting mapper
+
+**Status:** informational.
+
+The IMPL-AND-06 spec sketched a Moshi
+`PolymorphicJsonAdapterFactory.of(EquipmentSpec::class.java, "specSchema")`
+for the typed `EquipmentSpec` sealed class. That factory expects the
+discriminator (`specSchema`) to live inside the spec JSON object. The
+backend's `EquipmentResponse` instead places `specSchema` as a sibling
+field next to `specs: Map<String, Object>`. Trying to make the factory
+work would need either a JSON pre-processor that moves the discriminator
+into the spec object, or backend changes — neither is appealing.
+
+The implementing agent kept the `EquipmentSpec` sealed class as the
+domain shape but did the projection by hand:
+  - `EquipmentDto` mirrors the wire shape (`specSchema: String`,
+    `specs: Map<String, Any?>`).
+  - `WorkoutsMappers.specsFromMap(schema, map)` projects into the typed
+    subtype; `specsToMap(spec)` projects back.
+  - Unknown / missing schemas degrade to `EquipmentSpec.Bodyweight`
+    (same forward-compat behaviour the spec called for).
+
+Behavioural surface is identical to what the spec asked for;
+implementation differs by a couple of files. Round-trip tests in
+`WorkoutsMappersTest` cover all six schemas plus Int/Double tolerance.
+
+### Note — Kotlin package `new` renamed to `create`
+
+**Status:** informational.
+
+`feature.workouts.new` was the natural home for `NewGymScreen` +
+`NewGymViewModel`. Hilt's annotation processor emits Java code, and
+Java rejects `new` as a package identifier. The aggregating processor
+failed with a `NullPointerException` during element validation.
+Renamed to `feature.workouts.create` (`NewGym*` class names retained
+since Kotlin treats `new` as a soft keyword, only the package was the
+problem).
+
+### Note — no add-equipment-to-gym backend endpoint; PATCH the location
+
+**Status:** informational, please review.
+
+The spec listed a hypothetical `POST /api/me/gyms/{id}/equipment/{equipmentId}`.
+That endpoint does not exist on the backend's `LocationController` —
+the only mutation path is `PATCH /api/me/gyms/{id}` with a new
+`equipmentIds[]` list. The Android client mirrors that: both
+`AddEquipmentViewModel.addFromCatalog` and the `submitNew` flow read
+the current location, append the new id, and PATCH. The
+`LocationRepository.addEquipment`/`removeEquipment` methods from the
+spec are NOT in the domain interface — they would have been thin
+wrappers around `update()` with no extra value.
+
+If a future product cycle wants atomic add (e.g., transactional add
+that prevents two concurrent UI tabs from clobbering each other's
+edits), the backend should grow the endpoint and the repo gets a
+single method; for now this matches both the web's behaviour and the
+backend's current API surface.
+
+### Note — `HoursMatrix` uses TextField instead of TimePickerDialog
+
+**Status:** open — please review.
+
+The spec called for Material3 `TimePickerDialog`. First cut used
+plain `HH:mm` `TextField`s so the entire 7-day matrix stays inline
+without modals — feels less heavy than seven popups. The spec
+explicitly said "if the modal feels heavy in QA, fall back to a
+DropdownMenu of 30-minute slots". This is an even lighter fallback —
+free text with the format placeholder. If you want the picker,
+swap `CompactTimeField` for `Material3 TimePickerDialog`-launching
+buttons in `HoursMatrix.kt`.
+
+### Note — `MultipartUploadClient` returns a `Result<T>` via caller-supplied parser
+
+**Status:** informational.
+
+The IMPL-AND-04 `MultipartSseClient` emits a `Flow<MultipartSseEvent>`
+that the caller streams from. The cover-photo upload doesn't have a
+phase ladder, just a single JSON LocationResponse on success, so the
+new `MultipartUploadClient` takes a `parse: (ResponseBody) -> T`
+lambda and returns `Result<T>`. The two helpers sit next to each
+other in `core-network/upload/` and `core-network/sse/`; the SSE one
+was NOT refactored to depend on the new helper because the SSE flow
+needs to start emitting before the request completes, which doesn't
+fit the `Result<T>` shape. If IMPL-AND-04 / 05's blood + DEXA upload
+flows ever drop SSE (the backend exposes the same operations
+synchronously today via the JSON endpoints), they can collapse onto
+this client.
+
+### Note — Equipment override sheet's "unsupported" branch is wired but unreachable
+
+**Status:** informational.
+
+The spec says: if the backend introduces a spec schema this build
+doesn't know, the override sheet should refuse to edit and point at
+the web app. The schema-tag enum lives in `core-domain` and the
+mapper already coerces unknown discriminators to `BODYWEIGHT`. The
+sheet's `unsupported` UI branch exists, but the path that sets the
+flag isn't currently active — the catalog Equipment's schema is read
+through the same enum, so an unknown schema arrives as
+`BODYWEIGHT` and the form just renders the "no specs" body-weight
+copy. This is the safer default for forward-compat; if you want the
+hard "open in web" message, add a marker on `EquipmentDto.toDomain()`
+that distinguishes "wire reported BODYWEIGHT" from "wire reported
+something unknown that we coerced".
+
+### Note — No Compose UI snapshot tests for the new screens
+
+**Status:** open — please advise.
+
+Same situation as Stage 04 and 05. Paparazzi / Roborazzi / Compose UI
+test harness was never wired by IMPL-AND-00. The behavioural surface
+is covered by `WorkoutsMappersTest` (the spec round-trip) and
+`GymsListViewModelTest` (loading / error / refresh transitions). The
+spec also listed `LocationCardTest` and `EquipmentSpecFormTest`
+snapshots — skipped this stage. Point at the framework when you want
+the visual tests added.
 
 ---
 
