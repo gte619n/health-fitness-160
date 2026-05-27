@@ -819,3 +819,114 @@ fields (canonical unit, orientation, thresholds). Pre-existing
 DrugRepository wiring + Gemini-key-gated image generation tests
 flagged in Stage 02 notes) are unchanged by this slice — they
 predate the change and reproduce on `HEAD~3`.
+
+---
+
+## Round 2 — Stage B
+
+### Note — `MoreRoute` lives in `feature-settings`, not `Route` sealed hierarchy
+
+**Status:** informational.
+
+The Round 2 Stage B brief asked for a `MoreRoute` "co-located with
+`SettingsRoute`". There is no `SettingsRoute` today — the Settings
+screen is still reached via `Route.Settings` in `app/`. To match the
+established feature-route convention (`MedicationDetailRoute`,
+`GymDetailRoute`, `ReportDetailRoute` all live in their feature
+module's `…/nav/` package), the new route was added as
+`com.gte619n.healthfitness.feature.settings.more.MoreRoute` next to
+the `MoreScreen` composable that consumes it. The phone nav graph
+imports the route directly; the foldable sidebar continues to drive
+off `Route.Settings` (which it should — the foldable lists every
+primary destination separately rather than collapsing into More).
+
+If you'd rather Settings also migrate to a feature-owned
+`SettingsRoute` to fully retire the `Route` aggregator, that's a
+separate cleanup pass — it would touch deep-link URI declarations
+and the foldable sidebar's icon list, neither of which Stage B was
+chartered to change.
+
+### Note — `TopLevelDestination.route` widened from `Route` to `Any`
+
+**Status:** informational.
+
+`PrimaryDestinations` still holds `Route` instances exclusively, but
+`BottomNavDestinations` now also references `MoreRoute` (a
+feature-owned `@Serializable object` that intentionally does not
+implement the `Route` sealed interface). The cleanest way to keep
+both lists typed-but-mixed is to widen `TopLevelDestination.route`
+to `Any`. The runtime call sites (`navController.navigate(route)`
+and `destination.hasRoute(route::class)`) both accept `Any`, so the
+widening is structurally safe — they just lose the compile-time
+guarantee that every destination is a member of the `Route`
+hierarchy. If we end up adding more feature-owned routes to the
+bottom nav, formalising a shared `interface NavRoute` would be the
+right next step; today's two-call-sites surface didn't justify the
+refactor.
+
+### Note — `SignOutAction` indirection added to keep `MoreViewModel` testable
+
+**Status:** informational.
+
+`GoogleAuthRepository` is a `class` (not `open`) that holds a live
+`CredentialManager`, which makes it impractical to substitute in
+JVM tests. `MoreViewModel` therefore depends on a small
+`SignOutAction` `fun interface` provided by a co-located Hilt
+module that delegates to `GoogleAuthRepository.signOut()`. The
+existing `SettingsViewModel` keeps its direct dependency on
+`GoogleAuthRepository` (it has no unit-test today), so this
+indirection is local to the new code; if/when SettingsViewModel
+grows a test it can adopt the same binding.
+
+### Note — Three `Route` redirect shims removed (DexaDetail / BloodReportDetail / GymDetail)
+
+**Status:** informational.
+
+Round 1 Stages 04 / 05 / 06 left thin `LaunchedEffect` redirect
+shims at `Route.DexaDetail`, `Route.BloodReportDetail`, and
+`Route.GymDetail` so any pre-existing deep-link that targeted the
+old aggregator routes would still land on the feature-owned route.
+A repo-wide grep confirmed nothing outside `AppNavGraph.kt` and
+`Route.kt` ever referenced them — no notifications, no string deep
+links, no other modules — so all three were dropped along with
+their `Route.kt` declarations. The feature-owned routes
+(`DexaScanDetailRoute`, `ReportDetailRoute`, `GymDetailRoute`)
+remain the single source of truth for those leaves.
+
+### Note — `MoreViewModel.UiState.NoProfile` instead of `UiState.Error`
+
+**Status:** informational.
+
+The profile fetch in `MoreViewModel` collapses failures into
+`UiState.NoProfile` rather than `UiState.Error`. The identity
+header is decorative — the menu rows below (Blood / Workouts /
+Settings / Sign out) don't depend on profile data, and forcing a
+full-screen error state would make the user unable to navigate or
+sign out when `/api/me` is transiently down. The Paparazzi snapshot
+covers both branches.
+
+### Note — `Outlined.Home` chosen for the Today tab icon (was `Outlined.Dashboard`)
+
+**Status:** informational.
+
+The Round 2 Stage B brief suggested `Outlined.Home / Filled.Home`
+for the Today tab on the bottom bar. `BottomNavDestinations` now
+uses `Outlined.Home` in that slot, but `PrimaryDestinations` (the
+foldable sidebar's source) keeps `Outlined.Dashboard` — the
+foldable rail is denser and the dashboard glyph reads better at
+18 dp. If you'd rather unify, change `PrimaryDestinations[0]` to
+`Icons.Outlined.Home` and the foldable will follow.
+
+### Note — Selected-state filled icons not yet wired
+
+**Status:** informational.
+
+Stage B's brief listed an Outlined-unselected / Filled-selected
+icon pair per destination. The current `BottomNavBar` doesn't
+swap icons on selection — selection is signalled via the accent
+underline + tinted icon already in place from Round 1. Filling out
+filled-icon pairs would require widening `TopLevelDestination` to
+carry both glyphs and threading `active` into the iconography; left
+as a follow-up so this stage stays scoped to the structural
+restructure. The accent-underline + tint is still distinctive
+enough that selection state reads at a glance.
