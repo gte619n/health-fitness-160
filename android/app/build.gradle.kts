@@ -132,6 +132,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    // IMPL-AND-01: collectAsStateWithLifecycle + LifecycleEventEffect.
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.window.manager)
 
     implementation(platform(libs.compose.bom))

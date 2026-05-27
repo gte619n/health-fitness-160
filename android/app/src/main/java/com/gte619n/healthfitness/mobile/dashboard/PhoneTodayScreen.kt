@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -20,19 +23,28 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.navigationBars
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.CardState
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.CardSwitch
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.DashboardViewModel
 import com.gte619n.healthfitness.ui.theme.Hf
 import com.gte619n.healthfitness.ui.theme.type
 
 @Composable
-fun PhoneTodayScreen() {
+fun PhoneTodayScreen(viewModel: DashboardViewModel = hiltViewModel()) {
+    val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    // Resume-only refresh per spec — pull-to-refresh deferred.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -48,13 +60,28 @@ fun PhoneTodayScreen() {
         ) {
             PhoneHeader()
             Spacer(Modifier.height(16.dp))
-            PhoneVitalsGrid()
+            PhoneVitalsGrid(weightCardState = ui.bodyComposition)
             Spacer(Modifier.height(11.dp))
-            TodayCard(modifier = Modifier.fillMaxWidth(), showHrInMeta = false)
+            // TodayCard isn't wrapped in CardSwitch because the calories
+            // / macros / workout sections render unconditionally from
+            // fixtures; the doses preview is what becomes live data. An
+            // error on the doses fetch surfaces inline as "no doses"
+            // rather than swapping out the whole card body.
+            TodayCard(
+                modifier = Modifier.fillMaxWidth(),
+                showHrInMeta = false,
+                dosesPreview = (ui.todaysDoses as? CardState.Loaded)?.data ?: emptyList(),
+            )
             Spacer(Modifier.height(11.dp))
             QuickLogTiles()
-            Spacer(Modifier.height(13.dp))
-            RecentFeed(entries = DashboardFixtures.recentPhone, showViewAll = true, modifier = Modifier.fillMaxWidth())
+            if (DashboardFlags.showRecentFeedFixtures) {
+                Spacer(Modifier.height(13.dp))
+                RecentFeed(
+                    entries = DashboardFallbacks.recentPhone,
+                    showViewAll = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         BottomNav()
     }
@@ -69,13 +96,13 @@ private fun PhoneHeader() {
     ) {
         Column {
             Text(
-                text = DashboardFixtures.GREETING,
+                text = DashboardFallbacks.GREETING,
                 style = Hf.type.headingLg.copy(fontSize = 18.sp),
                 color = Hf.colors.textPrimary,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "${DashboardFixtures.DATE_WEEKDAY} · ${DashboardFixtures.DATE_MONTH_DAY} · ${DashboardFixtures.TIME}",
+                text = "${DashboardFallbacks.DATE_WEEKDAY} · ${DashboardFallbacks.DATE_MONTH_DAY} · ${DashboardFallbacks.TIME}",
                 style = Hf.type.monoSm.copy(fontSize = 11.sp),
                 color = Hf.colors.textTertiary,
             )
@@ -86,21 +113,31 @@ private fun PhoneHeader() {
                 contentDescription = "Notifications",
                 showDot = true,
             )
-            AvatarSquare(initials = DashboardFixtures.USER_INITIALS)
+            AvatarSquare(initials = DashboardFallbacks.USER_INITIALS)
         }
     }
 }
 
 @Composable
-private fun PhoneVitalsGrid() {
+private fun PhoneVitalsGrid(
+    weightCardState: CardState<com.gte619n.healthfitness.domain.dashboard.WeightSummary?>,
+) {
+    // Weight card folds the body-composition card state into the existing
+    // StatCard surface. Loading / Error render as the fallback Vital
+    // shape so the 2×2 grid stays uniform; HRV / RHR / Readiness keep
+    // their fixture cards while `DashboardFlags.showVitalsFixtures = true`.
+    val weightVital = when (weightCardState) {
+        is CardState.Loaded -> VitalFromWeight.weightVitalOrFallback(weightCardState.data)
+        else -> DashboardFallbacks.vitals[0]
+    }
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            StatCard(stat = DashboardFixtures.vitals[0], modifier = Modifier.weight(1f))
-            StatCard(stat = DashboardFixtures.vitals[1], modifier = Modifier.weight(1f))
+            StatCard(stat = weightVital, modifier = Modifier.weight(1f))
+            StatCard(stat = DashboardFallbacks.vitals[1], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            StatCard(stat = DashboardFixtures.vitals[2], modifier = Modifier.weight(1f))
-            StatCard(stat = DashboardFixtures.vitals[3], modifier = Modifier.weight(1f))
+            StatCard(stat = DashboardFallbacks.vitals[2], modifier = Modifier.weight(1f))
+            StatCard(stat = DashboardFallbacks.vitals[3], modifier = Modifier.weight(1f))
         }
     }
 }
@@ -162,7 +199,7 @@ private fun BottomNav() {
                     .padding(top = 12.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                DashboardFixtures.phoneBottomNav.forEach { dest ->
+                DashboardFallbacks.phoneBottomNav.forEach { dest ->
                     BottomNavItem(icon = dest.icon, label = dest.label, active = dest.active)
                 }
             }

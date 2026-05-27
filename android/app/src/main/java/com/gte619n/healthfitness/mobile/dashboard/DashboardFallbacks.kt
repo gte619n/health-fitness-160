@@ -79,7 +79,20 @@ data class Vital(
     val sparkline: List<Float>,
 )
 
-object DashboardFixtures {
+/**
+ * IMPL-AND-01: surviving fixtures only. Each section here is intentionally
+ * not yet wired to a backend; the [DashboardFlags] booleans below name
+ * the toggle that should switch it off when a real source arrives.
+ *
+ * Removed in IMPL-AND-01 (now live): `weightSeries`, `xAxisLabels`,
+ * `bloodMarkers`, `bloodPanelDate`, `BloodMarker` data class. The weight
+ * vital is now derived per-request from `WeightSummary` (see
+ * `VitalFromWeight.weightVital`). The Weight `StatCard` on phone reads
+ * that derived vital instead of `vitals[0]`.
+ */
+object DashboardFallbacks {
+    // Header chrome — replaced by a real clock / locale aware formatter
+    // when IMPL-AND-02 lands user-profile state.
     const val GREETING = "Good morning, Evan"
     const val DATE_WEEKDAY = "TUE"
     const val DATE_MONTH_DAY = "MAY 20"
@@ -89,14 +102,20 @@ object DashboardFixtures {
     const val USER_NAME = "Evan Glazier"
     const val USER_ROLE = "CEO"
 
+    /**
+     * Vitals row. The Weight card (index 0) is overridden at render time
+     * with a real value derived from `WeightSummary`. HRV / Resting HR /
+     * Readiness (indices 1-3) stay on fixtures until a Health Connect
+     * source ships — gated by [DashboardFlags.showVitalsFixtures].
+     */
     val vitals = listOf(
         Vital(
             label = "Weight",
             icon = DashboardIcons.Scale,
-            value = "189.2",
+            value = "—",
             unit = "lb",
-            delta = VitalDelta(ArrowDir.Down, "0.4", "7d", Tone.Good),
-            sparkline = listOf(12f, 10f, 13f, 9f, 11f, 8f, 9f, 6f, 7f),
+            delta = null,
+            sparkline = List(9) { 10f },
         ),
         Vital(
             label = "HRV",
@@ -126,74 +145,9 @@ object DashboardFixtures {
 
     val vitalsShortLabels = listOf("Weight", "HRV", "RHR", "Ready")
 
-    val weightSeries = listOf(
-        192.8f, 192.6f, 193.1f, 192.9f, 192.4f, 192.7f, 192.3f, 192.0f, 192.5f,
-        191.8f, 191.6f, 192.1f, 191.4f, 191.7f, 191.2f, 190.9f, 191.4f, 190.8f,
-        190.5f, 191.0f, 190.6f, 190.3f, 190.8f, 190.4f, 190.1f, 190.5f, 190.7f,
-        190.2f, 190.0f, 190.4f, 189.8f, 190.1f, 189.6f, 189.9f, 189.4f, 189.7f,
-        190.0f, 189.5f, 189.3f, 189.6f, 189.9f, 189.4f, 189.2f, 189.5f, 189.1f,
-        189.4f, 189.8f, 189.3f, 189.0f, 189.4f, 189.7f, 189.2f,
-    )
-
-    val xAxisLabels = listOf(
-        32 to "FEB 20",
-        180 to "MAR 22",
-        335 to "APR 20",
-        500 to "MAY 20",
-    )
-
-    data class BloodMarker(
-        val name: String,
-        val value: String,
-        val unit: String,
-        val tone: Tone,
-        val goodFillPct: Float,
-        val tickPct: Float,
-        val labels: Triple<String, String, String>,
-    )
-
-    val bloodPanelDate = "OCT 14 · 2025"
-    val bloodMarkers = listOf(
-        BloodMarker(
-            name = "LDL",
-            value = "112",
-            unit = "mg/dL",
-            tone = Tone.Warn,
-            goodFillPct = 0.55f,
-            tickPct = 0.62f,
-            labels = Triple("0", "100", "200"),
-        ),
-        BloodMarker(
-            name = "ApoB",
-            value = "92",
-            unit = "mg/dL",
-            tone = Tone.Warn,
-            goodFillPct = 0.45f,
-            tickPct = 0.51f,
-            labels = Triple("0", "90", "180"),
-        ),
-        BloodMarker(
-            name = "HbA1c",
-            value = "5.2",
-            unit = "%",
-            tone = Tone.Good,
-            goodFillPct = 0.57f,
-            tickPct = 0.33f,
-            labels = Triple("4", "5.7", "7"),
-        ),
-        BloodMarker(
-            name = "hs-CRP",
-            value = "0.4",
-            unit = "mg/L",
-            tone = Tone.Good,
-            goodFillPct = 0.33f,
-            tickPct = 0.13f,
-            labels = Triple("0", "1", "3"),
-        ),
-    )
-
     data class Macro(val label: String, val value: String, val unit: String, val pct: Float)
 
+    // No nutrition backend yet — gated by [DashboardFlags.showTodayCardFixtures].
     val macros = listOf(
         Macro("Protein", "112", "g", 0.56f),
         Macro("Carbs", "98", "g", 0.35f),
@@ -204,6 +158,7 @@ object DashboardFixtures {
     val caloriesTarget = "2,800"
     val caloriesPct = 0.45f
 
+    // No workout backend yet — gated by [DashboardFlags.showTodayCardFixtures].
     val workoutTitle = "Pull Day · 06:15"
     val workoutMetaPhone = "52 min · 14,200 lb"
     val workoutMetaDesktop = "52 min · 14,200 lb · 142 HR"
@@ -216,6 +171,10 @@ object DashboardFixtures {
         val time: String,
     )
 
+    // No event-aggregation endpoint on the backend — gated by
+    // [DashboardFlags.showRecentFeedFixtures]. TODO(AND-future): build
+    // a unified activity log endpoint or render the recent feed from
+    // the per-feature event streams.
     val recentPhone = listOf(
         LogEntry(DashboardIcons.Barbell, Tone.Good, "Pull Day completed", "5 exercises · 18 sets", "07:08"),
         LogEntry(DashboardIcons.Scale, Tone.Neutral, "Weighed in · 189.2 lb", "Aria Air", "06:14"),
@@ -249,4 +208,24 @@ object DashboardFixtures {
         BottomDest("Trends", DashboardIcons.ChartLine),
         BottomDest("More", DashboardIcons.MoreHoriz),
     )
+}
+
+/**
+ * Compile-time toggles that record which dashboard sections remain on
+ * fake data. When a section's data source lands, flip the relevant
+ * flag to `false` (and delete the corresponding fallback block).
+ *
+ * These are deliberately `const val Boolean` so unreachable code is
+ * folded out by the Kotlin compiler — flipping a flag to `false` makes
+ * the fixture block dead and ProGuard/R8 will drop it.
+ */
+object DashboardFlags {
+    /** HRV / Resting HR / Readiness — no Health Connect source yet. */
+    const val showVitalsFixtures = true
+
+    /** Activity feed — no backend event-aggregation endpoint yet. */
+    const val showRecentFeedFixtures = true
+
+    /** Calories / macros / workout meta line on TodayCard. */
+    const val showTodayCardFixtures = true
 }

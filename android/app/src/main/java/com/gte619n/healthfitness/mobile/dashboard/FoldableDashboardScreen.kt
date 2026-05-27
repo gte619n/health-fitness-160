@@ -12,10 +12,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -24,17 +24,33 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gte619n.healthfitness.domain.dashboard.BloodMarkerSummary
+import com.gte619n.healthfitness.domain.dashboard.TodaysDoseSummary
+import com.gte619n.healthfitness.domain.dashboard.WeightSummary
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.CardState
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.CardSwitch
+import com.gte619n.healthfitness.mobile.dashboard.viewmodel.DashboardViewModel
 import com.gte619n.healthfitness.ui.TessetaMark
 import com.gte619n.healthfitness.ui.TessetaMarkVariant
 import com.gte619n.healthfitness.ui.theme.Hf
 import com.gte619n.healthfitness.ui.theme.type
+import java.util.Locale
+import kotlin.math.abs
 
 @Composable
-fun FoldableDashboardScreen() {
+fun FoldableDashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
+    val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -52,19 +68,47 @@ fun FoldableDashboardScreen() {
             ) {
                 FoldableTopBar()
                 Spacer(Modifier.height(18.dp))
-                FoldableVitalsRow()
+                FoldableVitalsRow(weightCardState = ui.bodyComposition)
                 Spacer(Modifier.height(11.dp))
-                BodyCompositionHero()
+                CardSwitch(
+                    state = ui.bodyComposition,
+                    placeholderHeightDp = 220,
+                    onRetry = viewModel::retryBodyComposition,
+                ) { summary -> BodyCompositionHero(summary = summary) }
                 Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    BloodPanel(showRangeLabels = false, modifier = Modifier.weight(1f))
-                    TodayCard(modifier = Modifier.weight(1f), showHrInMeta = false)
+                    CardSwitch(
+                        state = ui.blood,
+                        placeholderHeightDp = 220,
+                        onRetry = viewModel::retryBlood,
+                        modifier = Modifier.weight(1f),
+                    ) { markers ->
+                        BloodPanel(
+                            markers = markers,
+                            sampleDate = null,
+                            showRangeLabels = false,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    val doses: List<TodaysDoseSummary> =
+                        (ui.todaysDoses as? CardState.Loaded)?.data ?: emptyList()
+                    TodayCard(
+                        modifier = Modifier.weight(1f),
+                        showHrInMeta = false,
+                        dosesPreview = doses,
+                    )
                 }
-                Spacer(Modifier.height(10.dp))
-                RecentFeed(entries = DashboardFixtures.recentFoldable, showViewAll = false, modifier = Modifier.fillMaxWidth())
+                if (DashboardFlags.showRecentFeedFixtures) {
+                    Spacer(Modifier.height(10.dp))
+                    RecentFeed(
+                        entries = DashboardFallbacks.recentFoldable,
+                        showViewAll = false,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
         // Decorative hinge crease running down the middle.
@@ -94,7 +138,7 @@ private fun FoldableSidebar() {
         // section). 38 dp matches the spec's foldable rail size.
         TessetaMark(variant = TessetaMarkVariant.DARK, size = 38.dp)
         Spacer(Modifier.height(9.dp))
-        DashboardFixtures.foldableNav.forEach { dest ->
+        DashboardFallbacks.foldableNav.forEach { dest ->
             FoldableNavIcon(
                 icon = dest.icon,
                 active = dest.active,
@@ -116,7 +160,7 @@ private fun FoldableSidebar() {
             alert = false,
             contentDescription = "Settings",
         )
-        AvatarSquare(initials = DashboardFixtures.USER_INITIALS, size = 38)
+        AvatarSquare(initials = DashboardFallbacks.USER_INITIALS, size = 38)
     }
 }
 
@@ -181,7 +225,7 @@ private fun FoldableTopBar() {
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "${DashboardFixtures.DATE_WEEKDAY} · ${DashboardFixtures.DATE_MONTH_DAY} · ${DashboardFixtures.TIME} · ${DashboardFixtures.TZ}",
+                text = "${DashboardFallbacks.DATE_WEEKDAY} · ${DashboardFallbacks.DATE_MONTH_DAY} · ${DashboardFallbacks.TIME} · ${DashboardFallbacks.TZ}",
                 style = Hf.type.monoSm.copy(fontSize = 11.sp),
                 color = Hf.colors.textTertiary,
             )
@@ -224,15 +268,23 @@ private fun FoldableTopBar() {
 }
 
 @Composable
-private fun FoldableVitalsRow() {
+private fun FoldableVitalsRow(
+    weightCardState: CardState<WeightSummary?>,
+) {
+    val weight = when (weightCardState) {
+        is CardState.Loaded -> VitalFromWeight.weightVitalOrFallback(weightCardState.data)
+        else -> DashboardFallbacks.vitals[0]
+    }
+    val effectiveVitals = listOf(weight) + DashboardFallbacks.vitals.drop(1)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DashboardFixtures.vitals.forEachIndexed { i, stat ->
+        effectiveVitals.forEachIndexed { i, stat ->
             StatCard(
                 stat = stat,
-                overrideLabel = DashboardFixtures.vitalsShortLabels[i],
+                overrideLabel = DashboardFallbacks.vitalsShortLabels[i],
                 valueSizeSp = 19,
                 modifier = Modifier.weight(1f),
             )
@@ -241,7 +293,7 @@ private fun FoldableVitalsRow() {
 }
 
 @Composable
-private fun BodyCompositionHero() {
+fun BodyCompositionHero(summary: WeightSummary?) {
     HfCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(
@@ -252,26 +304,77 @@ private fun BodyCompositionHero() {
                 Column {
                     SectionTitle("Body composition")
                     Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        HeroNumeric(primary = "189.2", unit = "lb", delta = "↓ 3.6 90d", primarySizeSp = 30, unitSizeSp = 12)
-                        Box(modifier = Modifier.width(0.5.dp).height(34.dp).background(Hf.colors.borderDefault))
-                        HeroNumeric(primary = "17.4", unit = "% fat", delta = "↓ 0.8 pts", primarySizeSp = 15, unitSizeSp = 10)
-                        HeroNumeric(primary = "156.3", unit = "lean", delta = "↑ 1.2", primarySizeSp = 15, unitSizeSp = 10)
+                    if (summary == null) {
+                        Text(
+                            text = "No body-comp data yet",
+                            style = Hf.type.bodySm.copy(fontSize = 12.sp),
+                            color = Hf.colors.textTertiary,
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            HeroNumeric(
+                                primary = String.format(Locale.US, "%.1f", summary.latestLb),
+                                unit = "lb",
+                                delta = summary.ninetyDayDeltaLb?.let { formatDelta(it, "90d") },
+                                primarySizeSp = 30,
+                                unitSizeSp = 12,
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(0.5.dp)
+                                    .height(34.dp)
+                                    .background(Hf.colors.borderDefault),
+                            )
+                            HeroNumeric(
+                                primary = summary.latestBodyFatPct?.let {
+                                    String.format(Locale.US, "%.1f", it)
+                                } ?: "—",
+                                unit = "% fat",
+                                delta = null,
+                                primarySizeSp = 15,
+                                unitSizeSp = 10,
+                            )
+                            HeroNumeric(
+                                primary = summary.latestLeanMassLb?.let {
+                                    String.format(Locale.US, "%.1f", it)
+                                } ?: "—",
+                                unit = "lean",
+                                delta = null,
+                                primarySizeSp = 15,
+                                unitSizeSp = 10,
+                            )
+                        }
                     }
                 }
                 Segment(active = "90d")
             }
             Spacer(Modifier.height(11.dp))
-            WeightChart(modifier = Modifier.fillMaxWidth())
+            if (summary != null) {
+                WeightChart(
+                    series = summary.series.map { it.toFloat() },
+                    yMin = summary.yMin.toFloat(),
+                    yMax = summary.yMax.toFloat(),
+                    xLabels = summary.xLabels,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
+}
+
+private fun formatDelta(delta: Double, suffix: String): String {
+    val arrow = if (delta < 0) "↓" else "↑"
+    return "$arrow ${String.format(Locale.US, "%.1f", abs(delta))} $suffix"
 }
 
 @Composable
 private fun HeroNumeric(
     primary: String,
     unit: String,
-    delta: String,
+    delta: String?,
     primarySizeSp: Int,
     unitSizeSp: Int,
 ) {
@@ -289,12 +392,14 @@ private fun HeroNumeric(
                 color = Hf.colors.textTertiary,
             )
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = delta,
-            style = Hf.type.monoSm.copy(fontSize = 10.sp),
-            color = Hf.colors.good,
-        )
+        if (delta != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = delta,
+                style = Hf.type.monoSm.copy(fontSize = 10.sp),
+                color = Hf.colors.good,
+            )
+        }
     }
 }
 
