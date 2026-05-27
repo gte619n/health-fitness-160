@@ -411,7 +411,95 @@ is already on the DTO and the request DTO needs no change.
 
 ## Stage 04 — Blood testing
 
-(no questions yet)
+### Note — BloodTestReportResponse omits `createdAt`; Android tolerates null
+
+**Status:** informational.
+
+The backend's `BloodTestReportResponse.from(BloodTestReport)` only
+copies `reportId`, `sampleDate`, `labSource`, and `markers` — the
+domain record's `createdAt` is dropped on the wire. Android's
+`BloodTestReportDto` declares `createdAt: Instant?` so the missing
+field deserialises as null, and the report-list / detail UI falls
+back to copy that doesn't depend on a timestamp.
+
+If we ever need to render "uploaded N hours ago" we'd add `createdAt`
+to the response record on the backend — the Android DTO is already
+ready for it.
+
+### Note — `BloodTestReport.labSource` is non-null at the API boundary
+
+**Status:** informational.
+
+The backend's `BloodTestReportResponse.labSource` is declared
+`String` (not nullable), but the underlying core record allows null
+in the constructor path. To stay safe across both shapes the Android
+DTO declares the field as `String?` and the mapper falls back to an
+empty string when null. The UI then renders "Lab report" when blank,
+matching the web client's behaviour.
+
+### Note — system-intent PDF viewer requires existing FileProvider authority
+
+**Status:** open — please confirm authority is wired.
+
+`ReportDetailViewModel.openPdf()` calls
+`FileProvider.getUriForFile(context, "${packageName}.fileprovider", file)`.
+This assumes the existing `androidx.core.content.FileProvider` is
+already declared in the phone app's `AndroidManifest.xml` with
+authority `com.gte619n.healthfitness.fileprovider` and a paths XML
+exposing `cacheDir` (or `external-cache-path`). The spec's Decisions
+table lists this as a "uses the existing authority" assumption.
+
+If the manifest entry doesn't exist yet, the View PDF button will
+throw `IllegalArgumentException: Failed to find configured root that
+contains <file>`. Add it as part of acceptance-test pass 5; the
+backend / Cloud Build path doesn't change.
+
+### Note — `BloodMarkerSummaryMapper` retired but file retained
+
+**Status:** informational.
+
+IMPL-AND-04 rewires `BloodMarkerSummaryRepositoryImpl` so the
+dashboard panel reads through `BloodReadingRepository` +
+`BloodTestReportRepository` (the same repos the new feature-blood
+module uses). The Stage 01 `BloodMarkerSummaryMapper` is no longer
+called by any production code, but the file + its tests are kept as
+a reference for the single-endpoint derivation logic in case a
+narrower path needs to be revived. Safe to delete by IMPL-AND-08 if
+neither use case resurfaces.
+
+### Note — multipart-SSE upload uses a custom parser, not OkHttp EventSource
+
+**Status:** informational.
+
+OkHttp's `EventSource.Factory` builds GET-only requests, so the blood-
+test PDF upload (POST multipart/form-data + text/event-stream
+response) cannot share its plumbing with `SseConsumer`. IMPL-AND-04
+adds `MultipartSseClient` in `core-network/` that combines a
+`MultipartBody` POST with a hand-rolled SSE line parser on the
+response `BufferedSource`. Reusable for IMPL-AND-05 DEXA upload
+(same shape — PDF in, phase events out).
+
+The parser supports:
+  - `event:` field for the optional event name
+  - `data:` field, multiple lines joined with `\n`
+  - blank-line event delimiters
+  - `:`-prefixed comments / heartbeats
+  - end-of-body flush (servers sometimes omit the trailing blank line)
+  - non-2xx response throws `IOException` so the upstream flow can
+    map it to `UploadEvent.Failed`
+
+### Note — `Route.BloodReportDetail` kept as a redirect to feature route
+
+**Status:** informational.
+
+The original `Route` sealed hierarchy in `app/.../navigation/Route.kt`
+declares `Route.BloodReportDetail(reportId)`. To avoid breaking any
+deep-links that may already target it, `AppNavGraph` registers a
+`composable<Route.BloodReportDetail>` that immediately pops itself
+and navigates to the feature-owned
+`com.gte619n.healthfitness.feature.blood.nav.ReportDetailRoute`. The
+feature route is now the source of truth — drop `Route.BloodReportDetail`
+in a future stage if no caller references it.
 
 ---
 
