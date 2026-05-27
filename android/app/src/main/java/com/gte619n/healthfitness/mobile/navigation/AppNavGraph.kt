@@ -5,6 +5,15 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.gte619n.healthfitness.feature.blood.add.AddReadingScreen
+import com.gte619n.healthfitness.feature.blood.detail.MarkerDetailScreen
+import com.gte619n.healthfitness.feature.blood.nav.AddReadingRoute
+import com.gte619n.healthfitness.feature.blood.nav.MarkerDetailRoute
+import com.gte619n.healthfitness.feature.blood.nav.ReportDetailRoute
+import com.gte619n.healthfitness.feature.blood.nav.UploadReportRoute
+import com.gte619n.healthfitness.feature.blood.overview.BloodOverviewScreen
+import com.gte619n.healthfitness.feature.blood.report.ReportDetailScreen
+import com.gte619n.healthfitness.feature.blood.upload.UploadLabReportScreen
 import com.gte619n.healthfitness.feature.medical.add.AddMedicationScreen
 import com.gte619n.healthfitness.feature.medical.detail.MedicationDetailScreen
 import com.gte619n.healthfitness.feature.medical.list.MedicationsListScreen
@@ -12,6 +21,8 @@ import com.gte619n.healthfitness.feature.medical.nav.MedicationDetailRoute
 import com.gte619n.healthfitness.feature.settings.SettingsScreen
 import com.gte619n.healthfitness.feature.settings.profile.ProfileScreen
 import com.gte619n.healthfitness.mobile.dashboard.PhoneTodayScreen
+import androidx.navigation.compose.dialog
+import androidx.navigation.toRoute
 
 /**
  * The single `NavHost` for the phone app. Feature modules expose
@@ -42,7 +53,42 @@ fun AppNavHost(
             )
         }
         composable<Route.Body> { PlaceholderScreen("Body", nextImpl = "IMPL-AND-05") }
-        composable<Route.Blood> { PlaceholderScreen("Blood", nextImpl = "IMPL-AND-04") }
+
+        // IMPL-AND-04: feature-blood replaces the placeholder. The bloodGraph
+        // helper would register routes the dialog-shape (AddReading, Upload)
+        // wants too, but the Route-typed marker/report-detail destinations
+        // need to live in this NavHost so deep-links from Route.BloodReportDetail
+        // route through the same back stack. We register both shapes here.
+        composable<Route.Blood> {
+            BloodOverviewScreen(
+                onMarkerClick = { key -> navController.navigate(MarkerDetailRoute(key)) },
+                onReportClick = { id -> navController.navigate(ReportDetailRoute(id)) },
+                onAddReading = { navController.navigate(AddReadingRoute) },
+                onUploadPdf = { navController.navigate(UploadReportRoute) },
+            )
+        }
+        composable<MarkerDetailRoute> {
+            MarkerDetailScreen(onBack = { navController.popBackStack() })
+        }
+        composable<ReportDetailRoute> {
+            ReportDetailScreen(onBack = { navController.popBackStack() })
+        }
+        dialog<AddReadingRoute> {
+            AddReadingScreen(
+                onDone = { navController.popBackStack() },
+                onDismiss = { navController.popBackStack() },
+            )
+        }
+        dialog<UploadReportRoute> {
+            UploadLabReportScreen(
+                onComplete = { reportId ->
+                    navController.popBackStack()
+                    navController.navigate(ReportDetailRoute(reportId))
+                },
+                onDismiss = { navController.popBackStack() },
+            )
+        }
+
         composable<Route.Workouts> { PlaceholderScreen("Workouts", nextImpl = "IMPL-AND-06") }
 
         // IMPL-AND-03: feature-medical replaces the placeholder.
@@ -76,7 +122,17 @@ fun AppNavHost(
         }
 
         composable<Route.DexaDetail> { PlaceholderScreen("DEXA detail", nextImpl = "IMPL-AND-05") }
-        composable<Route.BloodReportDetail> { PlaceholderScreen("Blood report", nextImpl = "IMPL-AND-04") }
+        // IMPL-AND-04: Route.BloodReportDetail kept as a thin redirect to
+        // the feature-owned ReportDetailRoute so any pre-existing deep
+        // links land on the new screen. The feature's route shape is the
+        // source of truth going forward.
+        composable<Route.BloodReportDetail> { entry ->
+            val args = entry.toRoute<Route.BloodReportDetail>()
+            androidx.compose.runtime.LaunchedEffect(args.reportId) {
+                navController.popBackStack()
+                navController.navigate(ReportDetailRoute(args.reportId))
+            }
+        }
         composable<Route.GymDetail> { PlaceholderScreen("Gym", nextImpl = "IMPL-AND-06") }
     }
 }

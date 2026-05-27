@@ -24,6 +24,7 @@ include(
     ":core-health",
     ":feature-workouts",
     ":feature-medical",
+    ":feature-blood",
     ":feature-chat",
     ":feature-settings",
 )

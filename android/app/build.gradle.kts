@@ -127,6 +127,7 @@ dependencies {
     implementation(project(":core-health"))
     implementation(project(":feature-workouts"))
     implementation(project(":feature-medical"))
+    implementation(project(":feature-blood"))
     implementation(project(":feature-chat"))
     implementation(project(":feature-settings"))
 
