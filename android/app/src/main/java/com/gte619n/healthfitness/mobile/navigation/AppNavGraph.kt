@@ -40,12 +40,10 @@ import com.gte619n.healthfitness.feature.workouts.override.EquipmentOverrideShee
 import com.gte619n.healthfitness.mobile.dashboard.PhoneTodayScreen
 import androidx.navigation.compose.dialog
 import androidx.navigation.toRoute
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.serialization.Serializable
 
 /**
  * The single `NavHost` for the phone app. Feature modules expose
@@ -239,38 +237,5 @@ fun AppNavHost(
             )
         }
 
-        // IMPL-AND-05: Route.DexaDetail kept as a thin redirect to the
-        // feature-owned DexaScanDetailRoute so any pre-existing deep links
-        // land on the new screen. The feature's route shape is the source
-        // of truth going forward.
-        composable<Route.DexaDetail> { entry ->
-            val args = entry.toRoute<Route.DexaDetail>()
-            androidx.compose.runtime.LaunchedEffect(args.scanId) {
-                navController.popBackStack()
-                navController.navigate(DexaScanDetailRoute(args.scanId))
-            }
-        }
-        // IMPL-AND-04: Route.BloodReportDetail kept as a thin redirect to
-        // the feature-owned ReportDetailRoute so any pre-existing deep
-        // links land on the new screen. The feature's route shape is the
-        // source of truth going forward.
-        composable<Route.BloodReportDetail> { entry ->
-            val args = entry.toRoute<Route.BloodReportDetail>()
-            androidx.compose.runtime.LaunchedEffect(args.reportId) {
-                navController.popBackStack()
-                navController.navigate(ReportDetailRoute(args.reportId))
-            }
-        }
-        // Route.GymDetail kept as a thin redirect to the feature-owned
-        // GymDetailRoute so any pre-existing deep links land on the
-        // new screen. The feature's route shape is now the source of
-        // truth.
-        composable<Route.GymDetail> { entry ->
-            val args = entry.toRoute<Route.GymDetail>()
-            LaunchedEffect(args.gymId) {
-                navController.popBackStack()
-                navController.navigate(GymDetailRoute(args.gymId))
-            }
-        }
     }
 }

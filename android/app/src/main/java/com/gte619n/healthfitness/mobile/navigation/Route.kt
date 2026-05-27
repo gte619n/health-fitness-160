@@ -43,20 +43,15 @@ sealed interface Route {
     @Serializable
     data object Profile : Route
 
-    // Detail leaves wired by later IMPLs but declared here so the graph is
-    // the single source of truth for the route surface.
-
-    @Serializable
-    data class DexaDetail(val scanId: String) : Route
-
-    @Serializable
-    data class BloodReportDetail(val reportId: String) : Route
-
-    // IMPL-AND-03: MedicationDetail moved to the feature module —
-    // see `com.gte619n.healthfitness.feature.medical.nav.MedicationDetailRoute`.
-    // Registered into the same NavHost; the SavedStateHandle round-trip
-    // happens against the feature-owned route class.
-
-    @Serializable
-    data class GymDetail(val gymId: String) : Route
+    // Round 2 Stage B drops the IMPL-AND-04 / 05 / 06 redirect shims
+    // (`DexaDetail`, `BloodReportDetail`, `GymDetail`). Each was a
+    // backward-compat hatch that re-dispatched to its feature-owned
+    // route at navigation time; nothing outside `AppNavGraph` ever
+    // referenced them so they leave no surface area behind. The
+    // feature-owned routes (`DexaScanDetailRoute`, `ReportDetailRoute`,
+    // `GymDetailRoute`) remain the single source of truth for deep
+    // links into those leaves.
+    //
+    // IMPL-AND-03 similarly migrated MedicationDetail to the feature
+    // module — see `com.gte619n.healthfitness.feature.medical.nav.MedicationDetailRoute`.
 }
