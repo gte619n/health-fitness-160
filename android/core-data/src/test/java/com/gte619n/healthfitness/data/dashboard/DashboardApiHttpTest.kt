@@ -1,14 +1,21 @@
 package com.gte619n.healthfitness.data.dashboard
 
+import com.gte619n.healthfitness.data.blood.BloodApi
+import com.gte619n.healthfitness.data.blood.BloodReadingRepositoryImpl
+import com.gte619n.healthfitness.data.blood.BloodTestReportRepositoryImpl
+import com.gte619n.healthfitness.network.BackendBaseUrlProvider
 import com.gte619n.healthfitness.network.InstantJsonAdapter
 import com.gte619n.healthfitness.network.LocalDateJsonAdapter
+import com.gte619n.healthfitness.network.sse.MultipartSseClient
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -50,8 +57,24 @@ class DashboardApiHttpTest {
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
         api = retrofit.create(DashboardApi::class.java)
+        val bloodApi = retrofit.create(BloodApi::class.java)
+        // IMPL-AND-04: the blood summary repo now consumes the same
+        // BloodReadingRepository the feature-blood module uses. The
+        // MockWebServer dispatcher routes both the dashboard's
+        // /api/me/blood path and the feature module's reports endpoint
+        // so the rewired test path mirrors production.
+        val bloodReading = BloodReadingRepositoryImpl(bloodApi)
+        val bloodReports = BloodTestReportRepositoryImpl(
+            api = bloodApi,
+            multipartSseClient = MultipartSseClient(client),
+            httpClient = client,
+            moshi = moshi,
+            baseUrl = object : BackendBaseUrlProvider {
+                override val baseUrl: String = server.url("/").toString()
+            },
+        )
         bodyCompRepo = BodyCompositionRepositoryImpl(api, Dispatchers.Unconfined)
-        bloodRepo = BloodMarkerSummaryRepositoryImpl(api, Dispatchers.Unconfined)
+        bloodRepo = BloodMarkerSummaryRepositoryImpl(bloodReading, bloodReports, Dispatchers.Unconfined)
         dosesRepo = TodaysDosesRepositoryImpl(api, Dispatchers.Unconfined)
     }
 
@@ -110,10 +133,12 @@ class DashboardApiHttpTest {
     }
 
     @Test
-    fun `blood readings filter to dashboard markers and ignore HDL`() = runBlocking {
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
+    fun `blood readings show top 4 dashboard markers in display order`() = runBlocking {
+        // The new impl hits both /api/me/blood and /api/me/blood/reports
+        // — route the responses with a dispatcher rather than enqueue
+        // order so the calls can interleave in any order.
+        server.dispatcher = bloodEndpointsDispatcher(
+            readingsBody = """
                 [
                   { "readingId": "a", "marker": "LDL", "value": 80.0, "unit": "mg/dL",
                     "sampleDate": "2026-05-01", "labSource": null, "notes": null,
@@ -132,21 +157,38 @@ class DashboardApiHttpTest {
                     "reference": { "unit": "%", "orientation": "LOWER_IS_BETTER",
                                    "goodThreshold": 5.7, "displayMin": 4.0, "displayMax": 7.0 } }
                 ]
-                """.trimIndent(),
-            ),
+            """.trimIndent(),
+            reportsBody = "[]",
         )
         val markers = bloodRepo.loadDashboardMarkers()
-        // Order is by DISPLAY_ORDER. Testosterone is missing (no reading);
-        // HDL is filtered out — leaves LDL, APO_B, HBA1C.
-        assertEquals(listOf("LDL", "APO_B", "HBA1C"), markers.map { it.markerKey })
+        // Top 4 from DISPLAY_ORDER that have readings. The catalog
+        // order is [LDL, APO_B, HDL, TOTAL_CHOLESTEROL, …]; with no
+        // total-cholesterol reading the panel takes the first 4
+        // available: LDL, APO_B, HDL, HBA1C.
+        assertEquals(listOf("LDL", "APO_B", "HDL", "HBA1C"), markers.map { it.markerKey })
     }
 
     @Test
     fun `blood readings empty payload returns empty list`() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+        server.dispatcher = bloodEndpointsDispatcher(
+            readingsBody = "[]",
+            reportsBody = "[]",
+        )
         val markers = bloodRepo.loadDashboardMarkers()
         assertTrue(markers.isEmpty())
     }
+
+    private fun bloodEndpointsDispatcher(readingsBody: String, reportsBody: String): Dispatcher =
+        object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val path = request.path.orEmpty()
+                return when {
+                    path.endsWith("/api/me/blood/reports") -> MockResponse().setBody(reportsBody)
+                    path.endsWith("/api/me/blood") -> MockResponse().setBody(readingsBody)
+                    else -> MockResponse().setResponseCode(404)
+                }
+            }
+        }
 
     @Test
     fun `todays doses parse window enum and taken flag`() = runBlocking {

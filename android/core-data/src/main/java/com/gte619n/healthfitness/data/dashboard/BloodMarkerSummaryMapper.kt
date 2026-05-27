@@ -7,6 +7,14 @@ import java.time.LocalDate
 import kotlin.math.abs
 
 /**
+ * IMPL-AND-04 note: this mapper is no longer used in production —
+ * [BloodMarkerSummaryRepositoryImpl] now delegates to the blood domain
+ * repositories + `LatestMarkers.derive`. The mapper file is kept (and
+ * its tests pass) as a historical reference for the dashboard-only
+ * derivation logic from Stage 01, in case a separate single-endpoint
+ * path ever needs to be revived. Delete if neither use case
+ * resurfaces by IMPL-AND-08.
+ *
  * Pure conversion DTO → [BloodMarkerSummary] list.
  *
  * Mirrors web/app/page.tsx:loadBloodPanel:
