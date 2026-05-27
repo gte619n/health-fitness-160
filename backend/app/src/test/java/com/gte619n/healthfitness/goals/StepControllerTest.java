@@ -147,7 +147,7 @@ class StepControllerTest {
     void completedPhaseStaysCompletedWhenStepManuallyUnchecked() throws Exception {
         String goalId = createGoal();
         String p1 = createPhase(goalId, "Phase 1");
-        String p2 = createPhase(goalId, "Phase 2");
+        createPhase(goalId, "Phase 2");
         String s1 = createManualStep(goalId, p1, "Step 1");
         markStepDone(goalId, p1, s1, true);
 

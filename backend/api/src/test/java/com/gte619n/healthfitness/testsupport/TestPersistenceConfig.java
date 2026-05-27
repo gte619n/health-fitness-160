@@ -7,7 +7,6 @@ import com.gte619n.healthfitness.core.location.Location;
 import com.gte619n.healthfitness.core.location.LocationRepository;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
