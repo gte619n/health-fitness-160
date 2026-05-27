@@ -28,7 +28,7 @@ When an item is resolved, replace its **Status:** line with `Resolved
 
 ### Note — `android/cloudbuild.yaml` updated for flavored build paths
 
-**Status:** open — please review.
+**Status:** Resolved 2026-05-27 — keep `:app:assembleProdRelease` for Firebase App Distribution. Internal testers exercise the prod backend.
 
 The IMPL-AND-00 spec adds `dev`/`staging`/`prod` flavors to `app/`, which
 moves the release APK out from
@@ -49,7 +49,7 @@ the task and path to `:app:assembleStagingRelease` /
 
 ### Note — generated local `android/debug.keystore`
 
-**Status:** informational, no action needed.
+**Status:** Resolved 2026-05-27 — check the debug keystore into the repo. Round 2 Stage A loosens `.gitignore` and tracks `android/debug.keystore`; shared SHA-1 so OAuth works on first checkout.
 
 The repo gitignores `*.keystore` and ships no local debug keystore, so a
 clean checkout doesn't have one. The implementing agent ran
@@ -110,7 +110,7 @@ first wear-side surface needs the backend.
 
 ### Note — TESTOSTERONE absent from backend `BloodMarker` enum
 
-**Status:** open — flag forwarded to the backend blood-testing work.
+**Status:** Resolved 2026-05-27 — Round 2 Stage A adds `TESTOSTERONE` + adult-male reference range to the backend enum.
 
 The spec calls for the dashboard blood panel to show Testosterone, LDL,
 ApoB, HbA1c. The backend `BloodMarker` enum (in `core/blood/BloodMarker.java`)
@@ -184,7 +184,7 @@ edge cases stay in the dedicated `BodyCompositionMapperTest` and
 
 ### Note — `DashboardScreenSnapshotTest` deferred
 
-**Status:** open — please advise.
+**Status:** Resolved 2026-05-27 — Paparazzi is the snapshot framework. Round 2 Stage A wires it; Round 2 Stage D adds the DashboardScreen snapshot.
 
 The spec asks for a Paparazzi-style preview snapshot test in
 `androidTest/`. IMPL-AND-00 did not wire Paparazzi or any other
@@ -309,7 +309,7 @@ covered end-to-end by `GoogleHealthViewModelTest`, which uses a fake
 
 ### Note — bottom nav promoted Meds out of the "More" tab
 
-**Status:** informational, please review.
+**Status:** Resolved 2026-05-27 — final bottom nav is `Today / Body / Meds / More` (4 slots + overflow). Round 2 Stage B implements MoreScreen with Blood, Workouts, Settings, Sign out.
 
 Stage 02 set the phone bottom nav to `Today / Body / Blood / Workouts /
 More`, with `More` going straight to Settings. IMPL-AND-03's spec calls
@@ -524,7 +524,7 @@ that wants to render labels above/below the chart.
 
 ### Note — body-composition domain types live alongside (not replacing) the dashboard's
 
-**Status:** open — please advise.
+**Status:** Resolved 2026-05-27 — `domain.bodycomposition.*` (new) is canonical. Round 2 Stage C migrates the downsampler/xLabels to the snapshot pipeline and retires `WeightSummary`.
 
 The spec calls for the dashboard hero to consume the new
 `BodyCompositionRepository.observeSnapshot()` directly, with
@@ -594,7 +594,7 @@ consolidation decision needed.
 
 ### Note — no Paparazzi / Compose UI snapshot tests landed
 
-**Status:** open — please advise.
+**Status:** Resolved 2026-05-27 — Paparazzi is the framework. Round 2 Stage A wires it across modules; Round 2 Stage D adds DEXA region grid + EditableNumberCell snapshots.
 
 The spec lists `DexaRegionGridTest` and `EditableNumberCellTest`
 as desired tests. Both need either Paparazzi (snapshot bitmaps) or
@@ -615,7 +615,7 @@ IMPL-AND-08 alongside any other deferred snapshot coverage.
 
 ### Note — bottom nav: Blood dropped, Workouts promoted
 
-**Status:** open — please review.
+**Status:** Resolved 2026-05-27 — final bottom nav is `Today / Body / Meds / More`. Blood AND Workouts both move to the More sheet (4 primary + overflow); see Round 2 Stage B.
 
 Stage 03 had `Today / Body / Blood / Meds / More`. With Workouts coming
 back online this IMPL changes it to `Today / Body / Workouts / Meds /
@@ -688,7 +688,7 @@ backend's current API surface.
 
 ### Note — `HoursMatrix` uses TextField instead of TimePickerDialog
 
-**Status:** open — please review.
+**Status:** Resolved 2026-05-27 — keep `TextField`. No rebuild.
 
 The spec called for Material3 `TimePickerDialog`. First cut used
 plain `HH:mm` `TextField`s so the entire 7-day matrix stays inline
@@ -735,7 +735,7 @@ something unknown that we coerced".
 
 ### Note — No Compose UI snapshot tests for the new screens
 
-**Status:** open — please advise.
+**Status:** Resolved 2026-05-27 — Paparazzi is the framework. Round 2 Stage D adds LocationCard + EquipmentSpecForm (per category) snapshots.
 
 Same situation as Stage 04 and 05. Paparazzi / Roborazzi / Compose UI
 test harness was never wired by IMPL-AND-00. The behavioural surface
