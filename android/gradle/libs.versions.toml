@@ -41,6 +41,13 @@ playServicesWearable = "18.2.0"
 credentials = "1.3.0"
 googleid = "1.1.1"
 
+# IMPL-AND-02: Google Identity Services AuthorizationClient for the
+# incremental Google Health scope grant. Credential Manager can't request
+# OAuth scopes or offline access — only an ID token — so we keep
+# play-services-auth around for the scope-upgrade flow alongside the
+# Credential Manager sign-in path.
+playServicesAuth = "21.2.0"
+
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -105,6 +112,7 @@ health-services-client = { module = "androidx.health:health-services-client", ve
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 google-id = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 
 # Wearable Data Layer — phone-to-wear token relay.
 play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "playServicesWearable" }

@@ -42,6 +42,14 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.google.id)
 
+    // IMPL-AND-02: GIS AuthorizationClient for the Google Health scope
+    // upgrade. Credential Manager can't request OAuth scopes, so the
+    // scope upgrade flow uses play-services-auth instead. The coroutines
+    // play-services bridge gives us `Task<...>.await()` for the
+    // AuthorizationClient's `Task`-shaped API.
+    implementation(libs.play.services.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // IMPL-AND-01: dashboard repository tests use MockWebServer + Turbine.
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
