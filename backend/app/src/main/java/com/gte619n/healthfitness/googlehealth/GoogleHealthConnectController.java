@@ -7,6 +7,7 @@ import com.gte619n.healthfitness.core.user.UserRepository;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthClient;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataPoint;
 import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthDataType;
+import com.gte619n.healthfitness.integrations.googlehealth.GoogleHealthOAuthClient;
 import com.gte619n.healthfitness.integrations.googlehealth.KmsTokenCipher;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +40,7 @@ public class GoogleHealthConnectController {
     private final GoogleHealthClient googleHealth;
     private final BackfillService backfill;
     private final AccessTokenService tokens;
+    private final GoogleHealthOAuthClient oauth;
 
     public GoogleHealthConnectController(
         CurrentUserProvider currentUser,
@@ -46,7 +48,8 @@ public class GoogleHealthConnectController {
         KmsTokenCipher cipher,
         GoogleHealthClient googleHealth,
         BackfillService backfill,
-        AccessTokenService tokens
+        AccessTokenService tokens,
+        GoogleHealthOAuthClient oauth
     ) {
         this.currentUser = currentUser;
         this.users = users;
@@ -54,15 +57,42 @@ public class GoogleHealthConnectController {
         this.googleHealth = googleHealth;
         this.backfill = backfill;
         this.tokens = tokens;
+        this.oauth = oauth;
     }
 
+    // The body can arrive in one of two shapes. The web client posts
+    // `{refreshToken, accessToken}` because Auth.js performed the
+    // refresh→access exchange on the Node side. The Android client posts
+    // `{serverAuthCode}` because GIS AuthorizationClient hands the
+    // calling app a server auth code (and only the backend holds the
+    // web OAuth client secret needed to exchange it). We branch on
+    // which field is present, exchange Android codes on the fly, then
+    // converge on the same KMS-encrypt + persist + backfill path.
     @PostMapping("/connect")
     public ResponseEntity<Void> connect(@RequestBody ConnectRequest body) {
         String userId = currentUser.get().userId();
 
-        String healthUserId = discoverHealthUserId(body.accessToken());
+        String refreshToken;
+        String accessToken;
+        if (body.serverAuthCode() != null && !body.serverAuthCode().isBlank()) {
+            GoogleHealthOAuthClient.TokenPair pair =
+                oauth.exchangeServerAuthCode(body.serverAuthCode());
+            refreshToken = pair.refreshToken();
+            accessToken = pair.accessToken();
+        } else {
+            refreshToken = body.refreshToken();
+            accessToken = body.accessToken();
+            if (refreshToken == null || refreshToken.isBlank()
+                || accessToken == null || accessToken.isBlank()) {
+                throw new IllegalArgumentException(
+                    "Connect request must include either serverAuthCode or both "
+                        + "refreshToken and accessToken");
+            }
+        }
 
-        KmsTokenCipher.EncryptedToken encrypted = cipher.encrypt(body.refreshToken());
+        String healthUserId = discoverHealthUserId(accessToken);
+
+        KmsTokenCipher.EncryptedToken encrypted = cipher.encrypt(refreshToken);
         users.recordGoogleHealthConnection(userId, new GoogleHealthConnection(
             healthUserId,
             encrypted.refreshTokenCiphertext(),
@@ -129,5 +159,8 @@ public class GoogleHealthConnectController {
             "Could not discover healthUserId — no body-comp data points exist for this user");
     }
 
-    public record ConnectRequest(String refreshToken, String accessToken) {}
+    // Both shapes share one record. Web posts `{refreshToken, accessToken}`;
+    // Android (IMPL-AND-02) posts `{serverAuthCode}`. Exactly one of
+    // (serverAuthCode) or (refreshToken + accessToken) must be present.
+    public record ConnectRequest(String refreshToken, String accessToken, String serverAuthCode) {}
 }
