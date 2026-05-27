@@ -108,7 +108,103 @@ first wear-side surface needs the backend.
 
 ## Stage 01 — Dashboard live data
 
-(no questions yet)
+### Note — TESTOSTERONE absent from backend `BloodMarker` enum
+
+**Status:** open — flag forwarded to the backend blood-testing work.
+
+The spec calls for the dashboard blood panel to show Testosterone, LDL,
+ApoB, HbA1c. The backend `BloodMarker` enum (in `core/blood/BloodMarker.java`)
+covers lipids + glycemic + inflammation but **does not** include
+`TESTOSTERONE`. The Android mapper's `DISPLAY_ORDER` still references it
+so that:
+  - the moment a user has a TESTOSTERONE reading (either from a future
+    backend enum addition or from extracted markers via IMPL-AND-04's
+    `/api/me/blood/reports` endpoint), it renders in the correct slot;
+  - markers with no reading are transparently omitted, so today's
+    users just see LDL + ApoB + HbA1c without an empty row.
+
+No Android-side workaround is added. The one-line backend enum
+addition + reference-range entry should live with backend blood work.
+
+### Note — `lifecycle-runtime-compose` added to `:app`
+
+**Status:** informational.
+
+IMPL-AND-01 needs `collectAsStateWithLifecycle` and `LifecycleEventEffect`
+in the two dashboard screens (resume-only refresh per spec). IMPL-AND-00
+only depended on `lifecycle-runtime-ktx`, so the implementing agent
+added `androidx-lifecycle-runtime-compose` to `gradle/libs.versions.toml`
+and wired it into `:app`'s dependencies. Same `lifecycle` version
+(2.8.7). Drop-in addition, no behaviour change for existing screens.
+
+### Note — `core-network` now exposes Retrofit + Moshi via `api()`
+
+**Status:** informational.
+
+Per the spec, feature modules (here just `core-data` for the dashboard
+slice) declare their own Retrofit interfaces (`DashboardApi`) and
+Moshi-annotated DTOs. That requires Retrofit + Moshi to be on
+downstream modules' compile classpath. The implementing agent flipped
+`core-network`'s Retrofit/Moshi declarations from `implementation()` to
+`api()`. OkHttp stays internal — the auth-aware client is wholly owned
+by `core-network`.
+
+### Note — `Instant` / `LocalDate` Moshi adapters added in `core-network`
+
+**Status:** informational.
+
+The backend serialises `java.time.Instant` and `java.time.LocalDate` as
+ISO-8601 strings. Moshi has no built-in adapters for either; the
+implementing agent added `InstantJsonAdapter` and `LocalDateJsonAdapter`
+in `NetworkModule.kt` and registered them on the shared `Moshi`
+instance. This means all future feature DTOs can declare `Instant` /
+`LocalDate` fields without `@Json(name = ...)` overrides.
+
+### Note — DTOs use the reflective Moshi adapter, not codegen
+
+**Status:** informational.
+
+IMPL-AND-00 wired `moshi` + `moshi-kotlin` (reflective adapter) but did
+**not** wire `moshi-kotlin-codegen` into KSP. The IMPL-AND-01 DTOs
+therefore drop `generateAdapter = true` and rely on the
+`KotlinJsonAdapterFactory` already registered in `NetworkModule.moshi`.
+If we ever need codegen for hot-path serialization, add the KSP
+processor in a follow-up — the DTO sources should be trivial to flip.
+
+### Note — single `DashboardApiHttpTest` covers MockWebServer + Moshi contract
+
+**Status:** informational.
+
+The spec called for one MockWebServer test per repository plus a
+separate `MoshiContractTest`. The implementing agent consolidated all
+three repos + the contract round-trip checks into a single
+`DashboardApiHttpTest` — same coverage, fewer setup blocks. Per-mapper
+edge cases stay in the dedicated `BodyCompositionMapperTest` and
+`BloodMarkerSummaryMapperTest`.
+
+### Note — `DashboardScreenSnapshotTest` deferred
+
+**Status:** open — please advise.
+
+The spec asks for a Paparazzi-style preview snapshot test in
+`androidTest/`. IMPL-AND-00 did not wire Paparazzi or any other
+snapshot framework, and the test would need the full Compose UI test
+harness. Skipped this IMPL — the three-state shape is covered by
+`DashboardViewModelTest` (Loading / Loaded / Error transitions per
+card) and the visual states are observable by running the dev variant.
+If you want a snapshot test added, point at the framework you want
+(Paparazzi vs. Roborazzi vs. plain Compose UI test bitmap diff) and
+it can land in IMPL-AND-02 alongside settings.
+
+### Note — x-axis chart labels uppercased to match web
+
+**Status:** informational.
+
+The web's `shortDate` helper uppercases the formatted month abbreviation
+("MAY 20" rather than "May 20"). The Android `BodyCompositionMapper`
+now does the same so the chart labels read identically across both
+clients. Spec text says "MMM dd" without specifying casing; matched web
+for parity.
 
 ---
 

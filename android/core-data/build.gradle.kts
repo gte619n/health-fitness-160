@@ -41,4 +41,14 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.google.id)
+
+    // IMPL-AND-01: dashboard repository tests use MockWebServer + Turbine.
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.retrofit)
+    testImplementation(libs.retrofit.moshi)
+    testImplementation(libs.moshi)
+    testImplementation(libs.moshi.kotlin)
 }

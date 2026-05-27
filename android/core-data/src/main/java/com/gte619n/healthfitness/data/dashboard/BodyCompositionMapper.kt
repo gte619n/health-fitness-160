@@ -151,7 +151,10 @@ internal object BodyCompositionMapper {
         val idxs = intArrayOf(0, n / 3, (2 * n) / 3, n - 1)
         return idxs.zip(xFractions.toList()).map { (idx, frac) ->
             val (timeMs, _) = pointsLb[min(idx, n - 1)]
-            ChartXLabel(xFraction = frac, label = LABEL_FORMATTER.format(Instant.ofEpochMilli(timeMs)))
+            // Uppercased to match web's shortDate ("MAY 20").
+            val label = LABEL_FORMATTER.format(Instant.ofEpochMilli(timeMs))
+                .uppercase(Locale.US)
+            ChartXLabel(xFraction = frac, label = label)
         }
     }
 }

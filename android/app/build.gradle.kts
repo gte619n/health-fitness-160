@@ -159,4 +159,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
+    // IMPL-AND-01: DashboardViewModelTest uses Turbine on top of a
+    // StandardTestDispatcher and fake repositories.
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
 }
