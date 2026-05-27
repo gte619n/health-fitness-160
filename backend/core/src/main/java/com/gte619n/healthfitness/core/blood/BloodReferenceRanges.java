@@ -41,7 +41,14 @@ public final class BloodReferenceRanges {
         BloodMarker.FASTING_GLUCOSE,
         new Range("mg/dL", Orientation.LOWER_IS_BETTER, 100, 60, 140),
         BloodMarker.HS_CRP,
-        new Range("mg/L", Orientation.LOWER_IS_BETTER, 1.0, 0, 3)
+        new Range("mg/L", Orientation.LOWER_IS_BETTER, 1.0, 0, 3),
+        // Adult-male total testosterone: 264–916 ng/dL is the Endocrine
+        // Society / LabCorp reference range. Modelled as
+        // HIGHER_IS_BETTER with the lower bound as the "good" threshold;
+        // the visualization bar spans 0–1000 ng/dL to keep the upper
+        // bound comfortably inside the displayable scale.
+        BloodMarker.TESTOSTERONE,
+        new Range("ng/dL", Orientation.HIGHER_IS_BETTER, 264, 0, 1000)
     );
 
     public static Range rangeFor(BloodMarker marker) {

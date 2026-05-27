@@ -20,5 +20,9 @@ public enum BloodMarker {
     FASTING_GLUCOSE,
 
     // Inflammation
-    HS_CRP
+    HS_CRP,
+
+    // Hormones — reference range is adult-male total testosterone.
+    // Female / age-stratified ranges land when per-user overrides ship.
+    TESTOSTERONE
 }
