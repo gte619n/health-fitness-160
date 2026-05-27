@@ -210,7 +210,98 @@ for parity.
 
 ## Stage 02 — Settings & profile
 
-(no questions yet)
+### Note — backend extended additively for `{ serverAuthCode }` connect body
+
+**Status:** informational, no action needed but please review the backend slice.
+
+Per the IMPL-AND-02 spec's "Backend touchpoint" section, this IMPL adds an
+Android branch to `GoogleHealthConnectController.connect()`:
+
+  - `ConnectRequest` now carries an additional optional `serverAuthCode`
+    field alongside the existing `refreshToken` + `accessToken`. The web
+    path continues to use the original shape exactly; the Android client
+    posts `{"serverAuthCode": "..."}` only.
+  - `GoogleHealthOAuthClient.exchangeServerAuthCode(String)` is the new
+    helper that posts the auth-code grant against
+    `https://oauth2.googleapis.com/token`, reusing the existing web
+    OAuth client id + secret config. Returns a `TokenPair` record that
+    feeds the same KMS-encrypt-and-store path the web shape uses.
+  - The controller branches on `serverAuthCode` presence and rejects
+    bodies that have neither shape with `IllegalArgumentException`.
+
+No new IMPL spec needed; this is the small additive backend slice the
+spec explicitly says lands with AND-02. Pre-existing backend test
+failures (DrugRepository bean wiring, Gemini-API-key-gated image
+generation tests) are unrelated.
+
+### Note — `AuthorizationClientGateway` seam moved request-building out of repo
+
+**Status:** informational.
+
+The spec sketches `requestHealthAuthorization()` as building an
+`AuthorizationRequest` directly inside the repository and passing it to
+the GMS client. That works at runtime but blocks JVM unit tests:
+`com.google.android.gms.common.api.Scope.<init>` calls
+`android.text.TextUtils.isEmpty`, which throws `RuntimeException: Method
+isEmpty in android.text.TextUtils not mocked` under JUnit. To keep the
+repository unit-testable without Robolectric, the gateway interface now
+takes `(webOauthClientId: String, scope: String)` and the request is
+constructed inside `DefaultAuthorizationClientGateway` (the GMS-touching
+side). Public behaviour is identical.
+
+### Note — `AppRoot` threads `onSignedOut` down through the scaffold
+
+**Status:** informational.
+
+The spec calls for an `AuthCoordinator.markSignedOut()` method that the
+sign-out NavGraph callback dispatches into. The current `AuthViewModel`
+already has a `signOut()` that flips its UI state, and it's owned at
+the `AppRoot` composable's lifecycle, so re-doing that as a singleton
+coordinator would double the surface. Instead, `AppRoot` passes a small
+`onSignedOut: () -> Unit` lambda (bound to `authViewModel.signOut()`)
+into `SignedInScaffold`, which threads it through `AppNavHost` to the
+`SettingsScreen` route. `SettingsScreen` calls its own `SettingsViewModel.signOut(onDone)`
+which clears tokens + Credential Manager state and then invokes the
+lambda. The lambda flips the auth UI state, the top-level `when (state)`
+in `AppRoot` re-evaluates, and the sign-in screen takes over.
+
+### Note — height-clear via PATCH omits the field per default Moshi semantics
+
+**Status:** informational.
+
+The web posts `{"heightCm": null}` to clear the value; Android, with
+the reflective `KotlinJsonAdapterFactory`, omits null fields entirely
+from the JSON body. This means a hypothetical "clear my height" path
+on Android wouldn't actually clear the backend field. The Save button
+in `ProfileScreen` is disabled when both ft and in are blank, so the
+UI never exercises this path today. If the unit-system ADR or a future
+"Remove height" affordance lands, switch the Moshi instance to
+`.serializeNulls()` (or expose the field as a sealed `Update<Int>`
+type so the writer can distinguish "unset" from "set to null").
+
+### Note — `KDoc` containing `/*` would break KSP
+
+**Status:** informational, drive-by fix already in place.
+
+`GoogleHealthService.kt`'s class-level KDoc originally read
+`Retrofit service for /api/me/google-health/*. Three endpoints:`. The
+`/*` inside the `/** ... */` block confused KSP's incremental parser
+into reporting "Unclosed comment" at EOF, which in turn made every
+Hilt generation step error with `error.NonExistentClass`. Rewriting
+the prose to avoid `/*` fixed it. Watch for the same pattern in
+future KDocs (`URLs with /* paths`).
+
+### Note — `feature-settings` test for the NeedsUserConsent path uses fake repo
+
+**Status:** informational.
+
+`GoogleHealthScopeRepositoryTest` exercises the Resolved + Failed
+branches via the gateway seam, but skips the `NeedsUserConsent` path
+because constructing a real `android.content.IntentSender` in a JVM
+test is impractical (its public constructor is package-private). The
+`NeedsUserConsent → onConsentResult → Connected` flow is instead
+covered end-to-end by `GoogleHealthViewModelTest`, which uses a fake
+`GoogleHealthScopeRepositoryApi` that doesn't go through GMS at all.
 
 ---
 
