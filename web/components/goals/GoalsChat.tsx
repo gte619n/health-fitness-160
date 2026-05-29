@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { GoalProposalCard } from "@/components/goals/GoalProposalCard";
 import type { GoalProposalDraft } from "@/components/goals/GoalProposalCard";
 import { ChatMarkdown } from "@/components/goals/ChatMarkdown";
@@ -30,6 +31,8 @@ export type CommitProposalAction = (
   threadId: string,
   proposal: GoalProposalDto,
 ) => Promise<CommitProposalResult>;
+
+export type DeleteThreadAction = (threadId: string) => Promise<void>;
 
 const STARTER_PROMPTS = [
   "Help me build a plan to get my ApoB into optimal range",
@@ -62,11 +65,14 @@ function nextId(): string {
 export function GoalsChat({
   initialThreads,
   commit,
+  deleteThread,
 }: {
   initialThreads: ChatThread[];
   commit: CommitProposalAction;
+  deleteThread: DeleteThreadAction;
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const searchParams = useSearchParams();
   const seededGoalId = searchParams.get("goalId");
 
@@ -75,6 +81,7 @@ export function GoalsChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [, startDeleteTransition] = useTransition();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -255,6 +262,36 @@ export function GoalsChat({
     setStreaming(false);
   }
 
+  async function handleDeleteThread(tid: string) {
+    const ok = await confirm({
+      title: "Delete this conversation?",
+      description: "This can't be undone.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
+    startDeleteTransition(async () => {
+      try {
+        await deleteThread(tid);
+        setThreads((prev) => prev.filter((t) => t.threadId !== tid));
+        // If the deleted thread is currently open, reset to empty state.
+        if (threadIdRef.current === tid) {
+          abortRef.current?.abort();
+          setThreadId(null);
+          threadIdRef.current = null;
+          setMessages([]);
+          setInput("");
+          setStreaming(false);
+        }
+        toast.success("Conversation deleted");
+      } catch {
+        toast.error("Couldn't delete conversation", {
+          description: "Try again.",
+        });
+      }
+    });
+  }
+
   async function handleCommit(messageId: string, draft: GoalProposalDraft) {
     const tid = threadIdRef.current;
     if (!tid) {
@@ -320,19 +357,38 @@ export function GoalsChat({
             </p>
           ) : (
             threads.map((t) => (
-              <button
+              <div
                 key={t.threadId}
-                type="button"
-                onClick={() => switchThread(t.threadId)}
-                className={`block w-full cursor-pointer truncate rounded-md px-2.5 py-1.5 text-left text-[12px] ${
+                className={`group flex items-center rounded-md ${
                   t.threadId === threadId
-                    ? "bg-accent-bg text-accent-dim"
-                    : "text-secondary hover:bg-canvas-muted"
+                    ? "bg-accent-bg"
+                    : "hover:bg-canvas-muted"
                 }`}
-                title={t.title}
               >
-                {t.title || "Untitled"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => switchThread(t.threadId)}
+                  className={`min-w-0 flex-1 cursor-pointer truncate px-2.5 py-1.5 text-left text-[12px] ${
+                    t.threadId === threadId
+                      ? "text-accent-dim"
+                      : "text-secondary"
+                  }`}
+                  title={t.title}
+                >
+                  {t.title || "Untitled"}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeleteThread(t.threadId);
+                  }}
+                  aria-label={`Delete conversation: ${t.title || "Untitled"}`}
+                  className="mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded opacity-0 text-tertiary hover:bg-canvas hover:text-alert group-hover:opacity-100 focus-visible:opacity-100"
+                >
+                  <TrashIcon />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -529,5 +585,23 @@ function TypingIndicator() {
         />
       ))}
     </span>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="h-3 w-3"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 6.527A1.75 1.75 0 0 0 5.605 13.5h4.79a1.75 1.75 0 0 0 1.74-1.473L13.95 5.5h.3a.75.75 0 0 0 0-1.5H12v-.75A2.25 2.25 0 0 0 9.75 1h-3.5A2.25 2.25 0 0 0 4 3.25V4h1V3.25A1.25 1.25 0 0 1 6.25 2h3.5A1.25 1.25 0 0 1 11 3.25V4H5ZM6.5 7a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 1 .5-.5Zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 1 .5-.5Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
