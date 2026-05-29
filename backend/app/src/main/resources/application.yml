@@ -84,7 +84,7 @@ app:
     # docs/decisions/ADR-0005-goals-chat-gemini-pro.md. Uses its OWN env var
     # (GOALS_GEMINI_MODEL), independent of the shared GEMINI_MODEL, so it can
     # be overridden without affecting the other (flash) modules.
-    gemini-model: ${GOALS_GEMINI_MODEL:gemini-3.5-pro}
+    gemini-model: ${GOALS_GEMINI_MODEL:gemini-3.1-pro-preview}
   equipment:
     bucket: ${EQUIPMENT_BUCKET:health-fitness-160-equipment}
     # Gemini 3.1 Flash for equipment image generation (nano quality tier)

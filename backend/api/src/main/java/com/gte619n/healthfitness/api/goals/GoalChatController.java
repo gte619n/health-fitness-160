@@ -37,6 +37,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -70,6 +72,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RestController
 @RequestMapping("/api/me/goals/chat")
 public class GoalChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(GoalChatController.class);
 
     private static final long SSE_TIMEOUT_MS = 120_000L;
 
@@ -176,6 +180,8 @@ public class GoalChatController {
                 sendEvent(emitter, "done", Map.of("threadId", threadId));
                 emitter.complete();
             } catch (Exception e) {
+                log.error("Goals chat stream failed for user {} (thread {}): {}",
+                    userId, threadId, e.toString(), e);
                 String msg = e.getMessage() == null ? "Chat failed" : e.getMessage();
                 sendEvent(emitter, "error", Map.of("error", msg));
                 emitter.complete();

@@ -1,4 +1,4 @@
-# ADR-0005: Goals chat uses gemini-3.5-pro (exception to the flash-only rule)
+# ADR-0005: Goals chat uses gemini-3.1-pro-preview (exception to the flash-only rule)
 
 - Status: Accepted
 - Date: 2026-05-29
@@ -46,8 +46,16 @@ per-call premium of the Pro model is negligible against total spend.
 
 ## Decision
 
-Goals chat uses **`gemini-3.5-pro`** as a deliberate, documented exception
-to the `gemini-3.5-flash`-only convention.
+Goals chat uses **`gemini-3.1-pro-preview`** as a deliberate, documented
+exception to the `gemini-3.5-flash`-only convention.
+
+**On the model id:** there is **no `gemini-3.5-pro`** — the 3.5 generation
+ships flash only (verified against the live `models.list`). The current Pro
+model is `gemini-3.1-pro-preview` (a reasoning/"thinking" model), which also
+matches the generation of the image model the project already uses
+(`gemini-3.1-flash-image-preview`). It was initially configured as the
+nonexistent `gemini-3.5-pro`, which 404'd at call time and made the chat
+fail silently; corrected to `gemini-3.1-pro-preview`.
 
 - Scope is **goals chat ONLY**. DEXA extraction, blood-test extraction,
   medication/drug lookup, and equipment parsing all stay on
@@ -59,7 +67,7 @@ to the `gemini-3.5-flash`-only convention.
   ```yaml
   app:
     goals:
-      gemini-model: ${GOALS_GEMINI_MODEL:gemini-3.5-pro}
+      gemini-model: ${GOALS_GEMINI_MODEL:gemini-3.1-pro-preview}
   ```
 
   This makes the exception explicit in config and lets us override the goals
