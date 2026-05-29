@@ -71,12 +71,19 @@ web roadmap detail + manual editor + write mutations (step 6), web chat
 
 ## Web
 
-10. **Chat library:** install `@assistant-ui/react` (latest stable) per the
-    spec. If integration friction is high, the fallback is a thin custom
-    chat client over the SSE endpoint using the existing fetch/stream
-    primitives — but the first attempt uses assistant-ui as specified.
-    **(If this assumption changed during build, it is noted in the final
-    summary.)**
+10. **Chat library — fell back to a custom SSE client; `@assistant-ui/react`
+    was NOT added.** *Decided during build.* assistant-ui expects an
+    AI-SDK-style runtime with its own message/streaming contract and a
+    generative-UI tool-result registration model. Our backend is a custom
+    Spring `SseEmitter` stream with named events (`token`, `proposal`,
+    `error`, `done`) and a separate commit endpoint returning a `goalId` —
+    an awkward fit that would need substantial adapter code for a
+    single-thread-scope v1, and the editable `<GoalProposalCard>` already
+    exists as a plain React component (not a tool-UI registration). The web
+    chat therefore uses a thin custom client over `fetch` + `ReadableStream`
+    (`web/lib/sse-client.ts`) with a server-side SSE proxy route
+    (`web/app/api/goals/chat/route.ts`) that attaches bearer auth, plus
+    `react-markdown` for assistant text. The spec's documented fallback.
 
 11. **`<GoalProposalCard>` is the shared editable structure** used both
     inline in chat and as the standalone manual editor (opened blank). One
@@ -119,10 +126,29 @@ web roadmap detail + manual editor + write mutations (step 6), web chat
     `GoalProposalCard` composable), parameterized by thread scope, per spec.
     `feature-goals` depends on it.
 
-17. **Markdown rendering:** add the `compose-markdown` (Jetpack) library for
-    assistant message rendering. SSE client built on the existing OkHttp
-    dependency (manual chunked `BufferedReader` reader exposed as a
-    `Flow<String>`), no third-party SSE lib.
+17. **Markdown rendering:** assistant messages render with
+    `com.mikepenz:multiplatform-markdown-renderer-m3:0.27.0` (added to the
+    version catalog as `markdown-renderer-m3`). *Updated during build:* there is
+    no clean Jetpack `compose-markdown` artifact; the mikepenz M3 renderer is
+    well-maintained, takes Compose `TextStyle`/colors directly (so it adopts the
+    olive/oatmeal tokens), and 0.27.0 pins Kotlin 2.0.21 + multiplatform Compose
+    so no AGP/Compose-BOM bump was needed. SSE client built on the existing
+    OkHttp dependency — a manual chunked `BufferedReader` over the response body
+    parsing `event:`/`data:` lines, exposed as a `Flow<ChatStreamEvent>`
+    (`ChatSseClient` in `core-chat`); no third-party SSE library.
+
+    **SSE/Retrofit split:** the SSE stream (`POST .../chat`) uses OkHttp
+    directly via the shared `OkHttpClient` (so `AuthInterceptor` still injects
+    the bearer token) + `@BackendBaseUrl`. The plain-JSON calls — commit
+    (`POST .../chat/{threadId}/commit`) and `GET .../chat/threads` — stay on
+    Retrofit (`ChatApi` + `ChatRepository` in `core-data`). A 400 from commit
+    carries the re-flagged proposal in the error body, which `ChatRepository`
+    decodes with Moshi into `CommitResult.Invalid` so the card re-renders inline
+    field errors.
+
+    **GoalProposalCard** lives in `feature-goals` (it needs the goals domain
+    models); `core-chat` stays domain-free and renders the proposal via a
+    `toolResultSlot` composable slot that `feature-goals` supplies.
 
 18. **Android domain models** mirror the backend DTOs as Kotlin data classes
     with Moshi annotations, living in `core-domain` (or `feature-goals` if
