@@ -46,15 +46,20 @@ export default async function GoalsPage(props: {
               against live module data and auto-check when targets are met.
             </p>
           </div>
-          <span
-            className="caps-mono inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border-[0.5px] border-border-default bg-canvas-muted px-3 py-2 text-[10px] tracking-[0.06em] text-tertiary"
-            title="Chat-driven and manual goal creation are coming in the next PR"
-          >
-            New goal
-            <span className="rounded-full bg-canvas px-1.5 py-px text-[9px] text-tertiary">
-              soon
-            </span>
-          </span>
+          <div className="flex items-center gap-2">
+            <Link
+              href={"/me/goals/new" as Route}
+              className="caps-mono inline-flex items-center gap-1.5 rounded-md border-[0.5px] border-border-default bg-canvas px-3 py-2 text-[10px] tracking-[0.06em] text-secondary hover:text-primary"
+            >
+              Create manually
+            </Link>
+            <Link
+              href={"/me/goals/chat" as Route}
+              className="caps-mono inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-[10px] tracking-[0.06em] text-inverse hover:opacity-90"
+            >
+              New goal
+            </Link>
+          </div>
         </header>
 
         <nav className="flex items-center gap-1 rounded-md border-[0.5px] border-border-default bg-surface p-1">
@@ -84,7 +89,13 @@ export default async function GoalsPage(props: {
         ) : (
           <div className="space-y-3">
             {goals.map((g) => (
-              <GoalCard key={g.goalId} goal={g} />
+              <Link
+                key={g.goalId}
+                href={`/me/goals/${g.goalId}` as Route}
+                className="block transition-opacity hover:opacity-95"
+              >
+                <GoalCard goal={g} />
+              </Link>
             ))}
           </div>
         )}
@@ -97,7 +108,7 @@ function EmptyState({ status }: { status: GoalStatus }) {
   const messages: Record<GoalStatus, { title: string; body: string }> = {
     ACTIVE: {
       title: "No active goals yet",
-      body: "Goals will appear here once you create one. The next PR adds chat-driven and manual goal creation; the backend foundation (data model, metric resolver, step evaluator, daily SUSTAINED re-evaluation) is already live.",
+      body: "Create one manually to build a roadmap by hand, or start a chat to have a plan proposed. Steps resolve against live module data and auto-check when targets are met.",
     },
     COMPLETED: {
       title: "No completed goals",
