@@ -10,6 +10,7 @@ import type {
   StepKind,
   Comparator,
 } from "./types/goals";
+import type { ChatThread, GoalProposalDto } from "./types/goals-chat-wire";
 
 // Server-only HTTP helpers for the Goals module. Do not import from
 // client components — apiFetch reads server env + the Auth.js session.
@@ -199,5 +200,45 @@ export function reorderSteps(
     `/api/me/goals/${goalId}/phases/${phaseId}/steps/order`,
     "PUT",
     { ids },
+  );
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────
+//
+// The SSE chat send goes through the route handler in app/api/goals/chat
+// (the browser needs to read the stream). Thread listing and commit are
+// plain JSON, so they live here as server-only helpers.
+
+export function listChatThreads(): Promise<ChatThread[]> {
+  return apiJson<ChatThread[]>("/api/me/goals/chat/threads");
+}
+
+export type CommitChatResult =
+  | { ok: true; goalId: string }
+  | { ok: false; flagged: GoalProposalDto };
+
+// Commit a (user-edited) proposal. The backend returns { goalId } on
+// success, or 400 with the re-flagged GoalProposalDto when validation
+// fails — we distinguish the two so the UI can re-render inline errors.
+export async function commitChatProposal(
+  threadId: string,
+  proposal: GoalProposalDto,
+): Promise<CommitChatResult> {
+  const res = await apiFetch(`/api/me/goals/chat/${threadId}/commit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(proposal),
+  });
+  if (res.ok) {
+    const { goalId } = (await res.json()) as { goalId: string };
+    return { ok: true, goalId };
+  }
+  if (res.status === 400) {
+    const flagged = (await res.json()) as GoalProposalDto;
+    return { ok: false, flagged };
+  }
+  throw new BackendError(
+    `commit returned ${res.status}`,
+    res.status,
   );
 }
