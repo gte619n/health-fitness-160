@@ -40,11 +40,11 @@ public class GeminiGoalChatClient implements GoalChatClient {
 
     private final Client client;
     private final String model;
-    private final GenerateContentConfig config;
+    private final Tool tool;
 
     public GeminiGoalChatClient(
         @Value("${app.goals.gemini-api-key:${GEMINI_API_KEY:}}") String apiKey,
-        @Value("${app.goals.gemini-model:gemini-3.5-flash}") String model
+        @Value("${app.goals.gemini-model:gemini-3.5-pro}") String model
     ) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException(
@@ -53,18 +53,26 @@ public class GeminiGoalChatClient implements GoalChatClient {
         this.client = Client.builder().apiKey(apiKey).build();
         this.model = model;
 
-        Tool tool = Tool.builder()
+        this.tool = Tool.builder()
             .functionDeclarations(List.of(proposeGoalStructureTool()))
-            .build();
-
-        this.config = GenerateContentConfig.builder()
-            .systemInstruction(Content.fromParts(Part.fromText(systemPrompt())))
-            .tools(List.of(tool))
             .build();
     }
 
     @Override
-    public StreamResult streamChat(List<Turn> history, String userMessage, Consumer<String> onToken) {
+    public StreamResult streamChat(
+        List<Turn> history, String userMessage, String healthContext, Consumer<String> onToken) {
+        // The static systemPrompt() describes the model + registry; the
+        // per-request healthContext appends the user's current values so
+        // the model plans against real numbers. Fall back to the static
+        // prompt alone when no snapshot was supplied.
+        String systemInstruction = (healthContext == null || healthContext.isBlank())
+            ? systemPrompt()
+            : systemPrompt() + "\n\n" + healthContext;
+        GenerateContentConfig config = GenerateContentConfig.builder()
+            .systemInstruction(Content.fromParts(Part.fromText(systemInstruction)))
+            .tools(List.of(tool))
+            .build();
+
         List<Content> contents = new ArrayList<>();
         if (history != null) {
             for (Turn t : history) {

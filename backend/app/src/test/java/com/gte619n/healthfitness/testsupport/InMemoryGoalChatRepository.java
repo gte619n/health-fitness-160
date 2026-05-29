@@ -68,6 +68,18 @@ public class InMemoryGoalChatRepository implements GoalChatRepository {
     }
 
     @Override
+    public void deleteThread(String userId, String threadId) {
+        Map<String, GoalChatThread> userThreads = threads.get(userId);
+        if (userThreads != null) {
+            userThreads.remove(threadId);
+        }
+        Map<String, List<GoalChatMessage>> userMessages = messages.get(userId);
+        if (userMessages != null) {
+            userMessages.remove(threadId);
+        }
+    }
+
+    @Override
     public List<GoalChatMessage> listMessages(String userId, String threadId) {
         List<GoalChatMessage> list = messages.getOrDefault(userId, Map.of()).get(threadId);
         if (list == null) return List.of();

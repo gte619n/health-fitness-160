@@ -27,6 +27,7 @@ import com.gte619n.healthfitness.core.goals.chat.GoalChatRepository;
 import com.gte619n.healthfitness.core.goals.chat.GoalChatThread;
 import com.gte619n.healthfitness.core.goals.chat.GoalProposal;
 import com.gte619n.healthfitness.core.goals.chat.GoalProposalValidator;
+import com.gte619n.healthfitness.core.goals.chat.UserHealthSnapshotService;
 import com.gte619n.healthfitness.core.goals.eval.StepEvaluationService;
 import com.gte619n.healthfitness.integrations.goals.GoalChatClient;
 import java.io.IOException;
@@ -39,6 +40,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -85,6 +87,7 @@ public class GoalChatController {
     private final PhaseRepository phases;
     private final StepRepository steps;
     private final StepEvaluationService evaluator;
+    private final UserHealthSnapshotService snapshots;
 
     public GoalChatController(
         CurrentUserProvider currentUser,
@@ -95,7 +98,8 @@ public class GoalChatController {
         GoalRepository goals,
         PhaseRepository phases,
         StepRepository steps,
-        StepEvaluationService evaluator
+        StepEvaluationService evaluator,
+        UserHealthSnapshotService snapshots
     ) {
         this.currentUser = currentUser;
         this.chat = chat;
@@ -106,6 +110,7 @@ public class GoalChatController {
         this.phases = phases;
         this.steps = steps;
         this.evaluator = evaluator;
+        this.snapshots = snapshots;
     }
 
     // ---- POST /api/me/goals/chat (SSE) ----
@@ -141,11 +146,15 @@ public class GoalChatController {
         chat.appendMessage(userId, new GoalChatMessage(
             threadId, UUID.randomUUID().toString(), ChatRole.USER, message, null, null));
 
+        // Build the user's health snapshot once per request so the planner
+        // designs against the user's actual current values.
+        final String healthContext = snapshots.buildSnapshot(userId);
+
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         Thread.startVirtualThread(() -> {
             StringBuilder assistantText = new StringBuilder();
             try {
-                GoalChatClient.StreamResult result = chatClient.streamChat(history, message, token -> {
+                GoalChatClient.StreamResult result = chatClient.streamChat(history, message, healthContext, token -> {
                     assistantText.append(token);
                     sendEvent(emitter, "token", Map.of("text", token));
                 });
@@ -256,6 +265,20 @@ public class GoalChatController {
         return chat.listThreads(userId).stream()
             .map(ChatThreadResponse::from)
             .toList();
+    }
+
+    // ---- DELETE /api/me/goals/chat/threads/{threadId} ----
+
+    @DeleteMapping("/threads/{threadId}")
+    public ResponseEntity<Void> deleteThread(@PathVariable String threadId) {
+        String userId = currentUser.get().userId();
+        // Same not-found approach the rest of the controller uses: a thread
+        // the current user doesn't own simply isn't found for them.
+        if (chat.findThread(userId, threadId).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat thread not found");
+        }
+        chat.deleteThread(userId, threadId);
+        return ResponseEntity.noContent().build();
     }
 
     // ---- helpers ----

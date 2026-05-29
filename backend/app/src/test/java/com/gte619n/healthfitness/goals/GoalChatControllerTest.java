@@ -51,7 +51,7 @@ class GoalChatControllerTest {
         @Bean
         @Primary
         GoalChatClient fakeGoalChatClient() {
-            return (history, userMessage, onToken) -> {
+            return (history, userMessage, healthContext, onToken) -> {
                 onToken.accept("Here is ");
                 onToken.accept("a plan.");
                 RawProposal proposal = new RawProposal(
@@ -174,6 +174,39 @@ class GoalChatControllerTest {
                 .header("X-Dev-User", USER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteThreadRemovesItFromListThen404OnRepeat() throws Exception {
+        String user = "user-chat-delete-" + java.util.UUID.randomUUID();
+        String threadId = openThread(user);
+
+        // It shows up in the thread list before deletion.
+        mvc.perform(get("/api/me/goals/chat/threads").header("X-Dev-User", user))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+
+        // DELETE returns 204 No Content.
+        mvc.perform(delete("/api/me/goals/chat/threads/" + threadId)
+                .header("X-Dev-User", user))
+            .andExpect(status().isNoContent());
+
+        // It's gone from the list.
+        mvc.perform(get("/api/me/goals/chat/threads").header("X-Dev-User", user))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+
+        // Deleting again (now non-existent) is a 404.
+        mvc.perform(delete("/api/me/goals/chat/threads/" + threadId)
+                .header("X-Dev-User", user))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteUnknownThreadReturns404() throws Exception {
+        mvc.perform(delete("/api/me/goals/chat/threads/does-not-exist")
+                .header("X-Dev-User", USER))
             .andExpect(status().isNotFound());
     }
 
