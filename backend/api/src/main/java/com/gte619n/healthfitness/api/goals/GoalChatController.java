@@ -164,17 +164,29 @@ public class GoalChatController {
                 });
 
                 String proposalJson = null;
+                GoalProposal validated = null;
                 if (result.proposal() != null) {
-                    GoalProposal validated = validator.validate(result.proposal());
+                    validated = validator.validate(result.proposal());
                     GoalProposalDto dto = GoalProposalDto.from(validated);
                     proposalJson = JSON.writeValueAsString(dto);
                     sendEvent(emitter, "proposal", dto);
                 }
 
+                // The SSE-streamed assistant text is often thin when a
+                // proposal went out as structured data. Fold a concise
+                // text summary of the proposal into the persisted content
+                // so the next turn's history replay tells the model what
+                // it previously proposed. The SSE payloads above are
+                // untouched — this only affects what we store.
+                String baseText = result.assistantText() != null
+                    ? result.assistantText()
+                    : assistantText.toString();
+                String contentToPersist = withProposalSummary(baseText, validated);
+
                 // Persist the assistant message once the stream completes.
                 chat.appendMessage(userId, new GoalChatMessage(
                     threadId, UUID.randomUUID().toString(), ChatRole.ASSISTANT,
-                    result.assistantText() != null ? result.assistantText() : assistantText.toString(),
+                    contentToPersist,
                     proposalJson, null));
 
                 sendEvent(emitter, "done", Map.of("threadId", threadId));
@@ -288,6 +300,68 @@ public class GoalChatController {
     }
 
     // ---- helpers ----
+
+    /**
+     * Append a compact text summary of {@code proposal} to
+     * {@code baseText}. When there is no proposal, the base text is
+     * returned unchanged. When the model already produced substantial
+     * prose, the summary is appended (not substituted) so nothing the
+     * model said is lost on replay.
+     */
+    static String withProposalSummary(String baseText, GoalProposal proposal) {
+        if (proposal == null) {
+            return baseText;
+        }
+        String summary = summarizeProposal(proposal);
+        if (summary == null || summary.isBlank()) {
+            return baseText;
+        }
+        if (baseText == null || baseText.isBlank()) {
+            return summary;
+        }
+        return baseText.strip() + "\n\n" + summary;
+    }
+
+    /**
+     * Render a validated proposal as a few compact lines the model can
+     * read back: the goal title, then one line per phase listing its
+     * step titles with their metric/target where present.
+     */
+    private static String summarizeProposal(GoalProposal proposal) {
+        StringBuilder sb = new StringBuilder();
+        String title = proposal.title() != null ? proposal.title() : "(untitled)";
+        sb.append("[Proposed goal: ").append(title);
+        List<GoalProposal.ProposalPhase> phases =
+            proposal.phases() == null ? List.of() : proposal.phases();
+        for (int pi = 0; pi < phases.size(); pi++) {
+            GoalProposal.ProposalPhase phase = phases.get(pi);
+            String phaseTitle = phase.title() != null ? phase.title() : "(untitled phase)";
+            sb.append("\n  Phase ").append(pi + 1).append(" ").append(phaseTitle).append(" (steps: ");
+            List<GoalProposal.ProposalStep> stepList =
+                phase.steps() == null ? List.of() : phase.steps();
+            List<String> stepDescs = new ArrayList<>();
+            for (GoalProposal.ProposalStep step : stepList) {
+                String stepTitle = step.title() != null ? step.title() : "(untitled step)";
+                GoalProposal.ProposalMetric m = step.metric();
+                if (m != null && m.metricKey() != null) {
+                    StringBuilder metricDesc = new StringBuilder(stepTitle).append(" [").append(m.metricKey());
+                    if (m.comparator() != null) {
+                        metricDesc.append(" ").append(m.comparator());
+                    }
+                    if (m.targetValue() != null) {
+                        metricDesc.append(" ").append(m.targetValue());
+                    }
+                    metricDesc.append("]");
+                    stepDescs.add(metricDesc.toString());
+                } else {
+                    stepDescs.add(stepTitle);
+                }
+            }
+            sb.append(String.join("; ", stepDescs)).append(")");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 
     private static String deriveTitle(String firstMessage) {
         String trimmed = firstMessage.strip();

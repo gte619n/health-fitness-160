@@ -50,9 +50,13 @@ import org.springframework.stereotype.Service;
  *       writes. We catch and degrade to unavailable.</li>
  *   <li>{@code workouts.weeklyVolume} — repo exists but no producer
  *       writes aggregates; reads return empty.</li>
- *   <li>{@code nutrition.proteinAvg7d} — repo exists but no producer
- *       writes logs; reads return empty.</li>
  * </ul>
+ *
+ * <p>The {@code nutrition.*Avg7d} metrics (protein/carbs/fat/calories)
+ * are <strong>live</strong>: {@code NutritionService} writes
+ * {@link NutritionDailyLog} rows, so these branches compute real
+ * 7-day trailing averages and only return
+ * {@link MetricValue#unavailable()} when the window has no logs.
  */
 @Service
 public class FirestoreMetricResolver implements MetricResolver {
@@ -110,7 +114,11 @@ public class FirestoreMetricResolver implements MetricResolver {
             case WORKOUTS_COUNT -> MetricValue.unavailable();
 
             case WORKOUTS_WEEKLY_VOLUME -> latestWeeklyVolume(userId);
-            case NUTRITION_PROTEIN_AVG_7D -> protein7dAverage(userId);
+
+            case NUTRITION_PROTEIN_AVG_7D  -> nutrition7dAverage(userId, NutritionDailyLog::proteinGrams);
+            case NUTRITION_CARBS_AVG_7D    -> nutrition7dAverage(userId, NutritionDailyLog::carbsGrams);
+            case NUTRITION_FAT_AVG_7D      -> nutrition7dAverage(userId, NutritionDailyLog::fatGrams);
+            case NUTRITION_CALORIES_AVG_7D -> nutrition7dAverage(userId, FirestoreMetricResolver::caloriesForDay);
 
             case MEDS_ADHERENCE_30D -> adherence30d(userId);
         };
@@ -309,7 +317,15 @@ public class FirestoreMetricResolver implements MetricResolver {
         }
     }
 
-    private MetricValue protein7dAverage(String userId) {
+    /**
+     * 7-day trailing average of a nutrition field over the inclusive
+     * window [today-6, today]. Days where {@code extract} yields null
+     * are skipped (not counted as zero). Returns
+     * {@link MetricValue#unavailable()} when no log in the window
+     * carries a value for the field — the same convention all the
+     * nutrition macros share.
+     */
+    private MetricValue nutrition7dAverage(String userId, NutritionFieldExtractor extract) {
         try {
             LocalDate to = LocalDate.now();
             LocalDate from = to.minusDays(6);  // inclusive 7-day window
@@ -318,8 +334,9 @@ public class FirestoreMetricResolver implements MetricResolver {
             double sum = 0;
             int count = 0;
             for (NutritionDailyLog log : logs) {
-                if (log.proteinGrams() == null) continue;
-                sum += log.proteinGrams();
+                Double v = extract.extract(log);
+                if (v == null) continue;
+                sum += v;
                 count++;
             }
             if (count == 0) return MetricValue.unavailable();
@@ -328,6 +345,26 @@ public class FirestoreMetricResolver implements MetricResolver {
         } catch (UnsupportedOperationException e) {
             return MetricValue.unavailable();
         }
+    }
+
+    /**
+     * Calories for a single day: prefer the logged {@code caloriesKcal}
+     * when present, otherwise derive it from macros using Atwater
+     * factors (4 kcal/g protein, 4 kcal/g carbs, 9 kcal/g fat). Returns
+     * null only when neither calories nor any macro is recorded, so the
+     * day is skipped by {@link #nutrition7dAverage}.
+     */
+    private static Double caloriesForDay(NutritionDailyLog log) {
+        if (log.caloriesKcal() != null) return log.caloriesKcal();
+        Double protein = log.proteinGrams();
+        Double carbs = log.carbsGrams();
+        Double fat = log.fatGrams();
+        if (protein == null && carbs == null && fat == null) return null;
+        double kcal = 0;
+        if (protein != null) kcal += 4 * protein;
+        if (carbs != null) kcal += 4 * carbs;
+        if (fat != null) kcal += 9 * fat;
+        return kcal;
     }
 
     /**
@@ -366,5 +403,10 @@ public class FirestoreMetricResolver implements MetricResolver {
     @FunctionalInterface
     private interface FieldExtractor {
         Double extract(DailyMetric m);
+    }
+
+    @FunctionalInterface
+    private interface NutritionFieldExtractor {
+        Double extract(NutritionDailyLog log);
     }
 }

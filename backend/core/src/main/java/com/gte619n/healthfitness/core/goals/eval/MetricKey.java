@@ -30,6 +30,9 @@ public enum MetricKey {
     WORKOUTS_COUNT("workouts.count"),
     WORKOUTS_WEEKLY_VOLUME("workouts.weeklyVolume"),
     NUTRITION_PROTEIN_AVG_7D("nutrition.proteinAvg7d"),
+    NUTRITION_CARBS_AVG_7D("nutrition.carbsAvg7d"),
+    NUTRITION_FAT_AVG_7D("nutrition.fatAvg7d"),
+    NUTRITION_CALORIES_AVG_7D("nutrition.caloriesAvg7d"),
     MEDS_ADHERENCE_30D("meds.adherence30d");
 
     private final String key;

@@ -9,6 +9,7 @@ public record NutritionDailyLog(
     Double proteinGrams,
     Double carbsGrams,
     Double fatGrams,
+    Double caloriesKcal,
     Instant createdAt,
     Instant updatedAt
 ) {}
