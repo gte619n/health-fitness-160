@@ -99,7 +99,7 @@ public class TestPersistenceConfig {
     // emits no proposal; GoalChatControllerTest installs its own richer fake.
     @Bean
     GoalChatClient goalChatClient() {
-        return (history, userMessage, onToken) -> {
+        return (history, userMessage, healthContext, onToken) -> {
             String reply = "Thanks, let me think about that.";
             for (String word : reply.split(" ")) {
                 onToken.accept(word + " ");

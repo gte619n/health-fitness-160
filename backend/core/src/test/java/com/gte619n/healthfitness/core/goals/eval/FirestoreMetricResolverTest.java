@@ -219,11 +219,11 @@ class FirestoreMetricResolverTest {
         InMemNutrition nutrition = new InMemNutrition();
         LocalDate today = LocalDate.now();
         nutrition.add(new NutritionDailyLog(USER, today.minusDays(2),
-            100.0, null, null, Instant.now(), Instant.now()));
+            100.0, null, null, null, Instant.now(), Instant.now()));
         nutrition.add(new NutritionDailyLog(USER, today.minusDays(1),
-            120.0, null, null, Instant.now(), Instant.now()));
+            120.0, null, null, null, Instant.now(), Instant.now()));
         nutrition.add(new NutritionDailyLog(USER, today,
-            140.0, null, null, Instant.now(), Instant.now()));
+            140.0, null, null, null, Instant.now(), Instant.now()));
 
         FirestoreMetricResolver r = newResolver(
             new EmptyBodyComposition(), new EmptyBloodReadings(), new EmptyBloodTestReports(),
@@ -239,6 +239,86 @@ class FirestoreMetricResolverTest {
     void nutritionProteinAvg7d_unavailable_whenStubEmpty() {
         FirestoreMetricResolver r = newResolver();
         assertFalse(r.resolve(USER, MetricKey.NUTRITION_PROTEIN_AVG_7D).isAvailable());
+    }
+
+    @Test
+    void nutritionCarbsAvg7d_returnsAverage_overWindow() {
+        InMemNutrition nutrition = new InMemNutrition();
+        LocalDate today = LocalDate.now();
+        nutrition.add(new NutritionDailyLog(USER, today.minusDays(1),
+            null, 200.0, null, null, Instant.now(), Instant.now()));
+        nutrition.add(new NutritionDailyLog(USER, today,
+            null, 300.0, null, null, Instant.now(), Instant.now()));
+
+        FirestoreMetricResolver r = newResolverWithNutrition(nutrition);
+        MetricValue v = r.resolve(USER, MetricKey.NUTRITION_CARBS_AVG_7D);
+        assertTrue(v.isAvailable());
+        assertEquals(250.0, v.value().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void nutritionFatAvg7d_returnsAverage_overWindow() {
+        InMemNutrition nutrition = new InMemNutrition();
+        LocalDate today = LocalDate.now();
+        nutrition.add(new NutritionDailyLog(USER, today.minusDays(1),
+            null, null, 60.0, null, Instant.now(), Instant.now()));
+        nutrition.add(new NutritionDailyLog(USER, today,
+            null, null, 80.0, null, Instant.now(), Instant.now()));
+
+        FirestoreMetricResolver r = newResolverWithNutrition(nutrition);
+        MetricValue v = r.resolve(USER, MetricKey.NUTRITION_FAT_AVG_7D);
+        assertTrue(v.isAvailable());
+        assertEquals(70.0, v.value().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void nutritionCaloriesAvg7d_prefersLoggedCalories() {
+        InMemNutrition nutrition = new InMemNutrition();
+        LocalDate today = LocalDate.now();
+        nutrition.add(new NutritionDailyLog(USER, today.minusDays(1),
+            100.0, 200.0, 50.0, 2000.0, Instant.now(), Instant.now()));
+        nutrition.add(new NutritionDailyLog(USER, today,
+            100.0, 200.0, 50.0, 2400.0, Instant.now(), Instant.now()));
+
+        FirestoreMetricResolver r = newResolverWithNutrition(nutrition);
+        MetricValue v = r.resolve(USER, MetricKey.NUTRITION_CALORIES_AVG_7D);
+        assertTrue(v.isAvailable());
+        // Logged calories used verbatim: (2000 + 2400) / 2 = 2200.
+        assertEquals(2200.0, v.value().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void nutritionCaloriesAvg7d_derivesFromMacros_viaAtwater_whenNoCalories() {
+        InMemNutrition nutrition = new InMemNutrition();
+        LocalDate today = LocalDate.now();
+        // 4*100 + 4*200 + 9*50 = 400 + 800 + 450 = 1650 kcal each day.
+        nutrition.add(new NutritionDailyLog(USER, today.minusDays(1),
+            100.0, 200.0, 50.0, null, Instant.now(), Instant.now()));
+        nutrition.add(new NutritionDailyLog(USER, today,
+            100.0, 200.0, 50.0, null, Instant.now(), Instant.now()));
+
+        FirestoreMetricResolver r = newResolverWithNutrition(nutrition);
+        MetricValue v = r.resolve(USER, MetricKey.NUTRITION_CALORIES_AVG_7D);
+        assertTrue(v.isAvailable());
+        assertEquals(1650.0, v.value().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void nutritionCarbsAvg7d_unavailable_whenNoLogs() {
+        FirestoreMetricResolver r = newResolver();
+        assertFalse(r.resolve(USER, MetricKey.NUTRITION_CARBS_AVG_7D).isAvailable());
+    }
+
+    @Test
+    void nutritionFatAvg7d_unavailable_whenNoLogs() {
+        FirestoreMetricResolver r = newResolver();
+        assertFalse(r.resolve(USER, MetricKey.NUTRITION_FAT_AVG_7D).isAvailable());
+    }
+
+    @Test
+    void nutritionCaloriesAvg7d_unavailable_whenNoLogs() {
+        FirestoreMetricResolver r = newResolver();
+        assertFalse(r.resolve(USER, MetricKey.NUTRITION_CALORIES_AVG_7D).isAvailable());
     }
 
     @Test
@@ -290,6 +370,14 @@ class FirestoreMetricResolverTest {
             new EmptyBloodReadings(), new EmptyBloodTestReports(),
             new ThrowingDailyMetrics(), new ThrowingWorkouts(),
             new EmptyWeeklyAggregates(), new EmptyNutrition(), new EmptyAdherence()
+        );
+    }
+
+    private FirestoreMetricResolver newResolverWithNutrition(NutritionDailyLogRepository nutrition) {
+        return newResolver(
+            new EmptyBodyComposition(), new EmptyBloodReadings(), new EmptyBloodTestReports(),
+            new ThrowingDailyMetrics(), new ThrowingWorkouts(),
+            new EmptyWeeklyAggregates(), nutrition, new EmptyAdherence()
         );
     }
 

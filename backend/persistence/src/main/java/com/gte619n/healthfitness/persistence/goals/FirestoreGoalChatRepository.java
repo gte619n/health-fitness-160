@@ -83,6 +83,17 @@ public class FirestoreGoalChatRepository implements GoalChatRepository {
         return docs.stream().map(d -> toMessage(threadId, d)).toList();
     }
 
+    @Override
+    public void deleteThread(String userId, String threadId) {
+        // Delete every message doc in the thread's subcollection first, then
+        // the thread doc itself. Firestore doesn't cascade subcollections.
+        List<QueryDocumentSnapshot> msgs = await(messages(userId, threadId).get()).getDocuments();
+        for (QueryDocumentSnapshot msg : msgs) {
+            await(msg.getReference().delete());
+        }
+        await(threads(userId).document(threadId).delete());
+    }
+
     private CollectionReference threads(String userId) {
         return firestore.collection("users").document(userId).collection(THREADS);
     }

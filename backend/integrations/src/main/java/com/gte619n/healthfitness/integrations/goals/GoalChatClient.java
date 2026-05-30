@@ -44,6 +44,16 @@ public interface GoalChatClient {
      * {@link StreamResult#proposal()} (the caller validates them). The
      * method blocks until the stream is exhausted and returns the
      * aggregate result.
+     *
+     * @param healthContext a plain-text snapshot of the user's current
+     *                       health (medications, body composition, blood
+     *                       panel, vitals, and the current value of every
+     *                       bindable registry metric) appended to the
+     *                       static system instruction for this request so
+     *                       the model plans against real numbers. May be
+     *                       null or blank, in which case the model falls
+     *                       back to the static system prompt alone.
      */
-    StreamResult streamChat(List<Turn> history, String userMessage, Consumer<String> onToken);
+    StreamResult streamChat(
+        List<Turn> history, String userMessage, String healthContext, Consumer<String> onToken);
 }

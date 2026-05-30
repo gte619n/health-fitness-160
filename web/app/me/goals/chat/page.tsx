@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
-import { listChatThreads, commitChatProposal } from "@/lib/goals-api";
+import { listChatThreads, commitChatProposal, deleteChatThread } from "@/lib/goals-api";
 import type { ChatThread, GoalProposalDto } from "@/lib/types/goals-chat-wire";
 import { GoalsChat } from "@/components/goals/GoalsChat";
 import type { CommitProposalResult } from "@/components/goals/GoalsChat";
@@ -36,6 +36,12 @@ export default async function GoalsChatPage() {
     return { ok: false, flagged: result.flagged };
   }
 
+  async function deleteThread(threadId: string): Promise<void> {
+    "use server";
+    await deleteChatThread(threadId);
+    revalidatePath("/me/goals/chat");
+  }
+
   return (
     <main className="min-h-screen bg-canvas p-8">
       <div className="mx-auto max-w-[920px] space-y-6">
@@ -57,7 +63,7 @@ export default async function GoalsChatPage() {
         </header>
 
         <Suspense fallback={null}>
-          <GoalsChat initialThreads={threads} commit={commit} />
+          <GoalsChat initialThreads={threads} commit={commit} deleteThread={deleteThread} />
         </Suspense>
       </div>
     </main>

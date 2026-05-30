@@ -214,6 +214,10 @@ export function listChatThreads(): Promise<ChatThread[]> {
   return apiJson<ChatThread[]>("/api/me/goals/chat/threads");
 }
 
+export function deleteChatThread(threadId: string): Promise<void> {
+  return send<void>(`/api/me/goals/chat/threads/${threadId}`, "DELETE");
+}
+
 export type CommitChatResult =
   | { ok: true; goalId: string }
   | { ok: false; flagged: GoalProposalDto };

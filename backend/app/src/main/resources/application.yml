@@ -77,7 +77,14 @@ app:
     # without an API key by providing a fake GoalChatClient bean.
     enabled: ${GOALS_CHAT_ENABLED:true}
     gemini-api-key: ${GEMINI_API_KEY:}
-    gemini-model: ${GEMINI_MODEL:gemini-3.5-flash}
+    # Goals chat is the ONE deliberate exception to the gemini-3.5-flash-only
+    # convention: multi-phase roadmap design + reasoning over a full health
+    # snapshot benefits materially from the stronger model, and goals planning
+    # is low-volume/user-initiated so the cost impact is small. See
+    # docs/decisions/ADR-0005-goals-chat-gemini-pro.md. Uses its OWN env var
+    # (GOALS_GEMINI_MODEL), independent of the shared GEMINI_MODEL, so it can
+    # be overridden without affecting the other (flash) modules.
+    gemini-model: ${GOALS_GEMINI_MODEL:gemini-3.1-pro-preview}
   equipment:
     bucket: ${EQUIPMENT_BUCKET:health-fitness-160-equipment}
     # Gemini 3.1 Flash for equipment image generation (nano quality tier)

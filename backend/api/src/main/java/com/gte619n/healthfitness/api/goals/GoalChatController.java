@@ -27,6 +27,7 @@ import com.gte619n.healthfitness.core.goals.chat.GoalChatRepository;
 import com.gte619n.healthfitness.core.goals.chat.GoalChatThread;
 import com.gte619n.healthfitness.core.goals.chat.GoalProposal;
 import com.gte619n.healthfitness.core.goals.chat.GoalProposalValidator;
+import com.gte619n.healthfitness.core.goals.chat.UserHealthSnapshotService;
 import com.gte619n.healthfitness.core.goals.eval.StepEvaluationService;
 import com.gte619n.healthfitness.integrations.goals.GoalChatClient;
 import java.io.IOException;
@@ -36,9 +37,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -69,6 +73,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/me/goals/chat")
 public class GoalChatController {
 
+    private static final Logger log = LoggerFactory.getLogger(GoalChatController.class);
+
     private static final long SSE_TIMEOUT_MS = 120_000L;
 
     private static final ObjectMapper JSON = JsonMapper.builder()
@@ -85,6 +91,7 @@ public class GoalChatController {
     private final PhaseRepository phases;
     private final StepRepository steps;
     private final StepEvaluationService evaluator;
+    private final UserHealthSnapshotService snapshots;
 
     public GoalChatController(
         CurrentUserProvider currentUser,
@@ -95,7 +102,8 @@ public class GoalChatController {
         GoalRepository goals,
         PhaseRepository phases,
         StepRepository steps,
-        StepEvaluationService evaluator
+        StepEvaluationService evaluator,
+        UserHealthSnapshotService snapshots
     ) {
         this.currentUser = currentUser;
         this.chat = chat;
@@ -106,6 +114,7 @@ public class GoalChatController {
         this.phases = phases;
         this.steps = steps;
         this.evaluator = evaluator;
+        this.snapshots = snapshots;
     }
 
     // ---- POST /api/me/goals/chat (SSE) ----
@@ -141,32 +150,50 @@ public class GoalChatController {
         chat.appendMessage(userId, new GoalChatMessage(
             threadId, UUID.randomUUID().toString(), ChatRole.USER, message, null, null));
 
+        // Build the user's health snapshot once per request so the planner
+        // designs against the user's actual current values.
+        final String healthContext = snapshots.buildSnapshot(userId);
+
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         Thread.startVirtualThread(() -> {
             StringBuilder assistantText = new StringBuilder();
             try {
-                GoalChatClient.StreamResult result = chatClient.streamChat(history, message, token -> {
+                GoalChatClient.StreamResult result = chatClient.streamChat(history, message, healthContext, token -> {
                     assistantText.append(token);
                     sendEvent(emitter, "token", Map.of("text", token));
                 });
 
                 String proposalJson = null;
+                GoalProposal validated = null;
                 if (result.proposal() != null) {
-                    GoalProposal validated = validator.validate(result.proposal());
+                    validated = validator.validate(result.proposal());
                     GoalProposalDto dto = GoalProposalDto.from(validated);
                     proposalJson = JSON.writeValueAsString(dto);
                     sendEvent(emitter, "proposal", dto);
                 }
 
+                // The SSE-streamed assistant text is often thin when a
+                // proposal went out as structured data. Fold a concise
+                // text summary of the proposal into the persisted content
+                // so the next turn's history replay tells the model what
+                // it previously proposed. The SSE payloads above are
+                // untouched — this only affects what we store.
+                String baseText = result.assistantText() != null
+                    ? result.assistantText()
+                    : assistantText.toString();
+                String contentToPersist = withProposalSummary(baseText, validated);
+
                 // Persist the assistant message once the stream completes.
                 chat.appendMessage(userId, new GoalChatMessage(
                     threadId, UUID.randomUUID().toString(), ChatRole.ASSISTANT,
-                    result.assistantText() != null ? result.assistantText() : assistantText.toString(),
+                    contentToPersist,
                     proposalJson, null));
 
                 sendEvent(emitter, "done", Map.of("threadId", threadId));
                 emitter.complete();
             } catch (Exception e) {
+                log.error("Goals chat stream failed for user {} (thread {}): {}",
+                    userId, threadId, e.toString(), e);
                 String msg = e.getMessage() == null ? "Chat failed" : e.getMessage();
                 sendEvent(emitter, "error", Map.of("error", msg));
                 emitter.complete();
@@ -258,7 +285,83 @@ public class GoalChatController {
             .toList();
     }
 
+    // ---- DELETE /api/me/goals/chat/threads/{threadId} ----
+
+    @DeleteMapping("/threads/{threadId}")
+    public ResponseEntity<Void> deleteThread(@PathVariable String threadId) {
+        String userId = currentUser.get().userId();
+        // Same not-found approach the rest of the controller uses: a thread
+        // the current user doesn't own simply isn't found for them.
+        if (chat.findThread(userId, threadId).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat thread not found");
+        }
+        chat.deleteThread(userId, threadId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ---- helpers ----
+
+    /**
+     * Append a compact text summary of {@code proposal} to
+     * {@code baseText}. When there is no proposal, the base text is
+     * returned unchanged. When the model already produced substantial
+     * prose, the summary is appended (not substituted) so nothing the
+     * model said is lost on replay.
+     */
+    static String withProposalSummary(String baseText, GoalProposal proposal) {
+        if (proposal == null) {
+            return baseText;
+        }
+        String summary = summarizeProposal(proposal);
+        if (summary == null || summary.isBlank()) {
+            return baseText;
+        }
+        if (baseText == null || baseText.isBlank()) {
+            return summary;
+        }
+        return baseText.strip() + "\n\n" + summary;
+    }
+
+    /**
+     * Render a validated proposal as a few compact lines the model can
+     * read back: the goal title, then one line per phase listing its
+     * step titles with their metric/target where present.
+     */
+    private static String summarizeProposal(GoalProposal proposal) {
+        StringBuilder sb = new StringBuilder();
+        String title = proposal.title() != null ? proposal.title() : "(untitled)";
+        sb.append("[Proposed goal: ").append(title);
+        List<GoalProposal.ProposalPhase> phases =
+            proposal.phases() == null ? List.of() : proposal.phases();
+        for (int pi = 0; pi < phases.size(); pi++) {
+            GoalProposal.ProposalPhase phase = phases.get(pi);
+            String phaseTitle = phase.title() != null ? phase.title() : "(untitled phase)";
+            sb.append("\n  Phase ").append(pi + 1).append(" ").append(phaseTitle).append(" (steps: ");
+            List<GoalProposal.ProposalStep> stepList =
+                phase.steps() == null ? List.of() : phase.steps();
+            List<String> stepDescs = new ArrayList<>();
+            for (GoalProposal.ProposalStep step : stepList) {
+                String stepTitle = step.title() != null ? step.title() : "(untitled step)";
+                GoalProposal.ProposalMetric m = step.metric();
+                if (m != null && m.metricKey() != null) {
+                    StringBuilder metricDesc = new StringBuilder(stepTitle).append(" [").append(m.metricKey());
+                    if (m.comparator() != null) {
+                        metricDesc.append(" ").append(m.comparator());
+                    }
+                    if (m.targetValue() != null) {
+                        metricDesc.append(" ").append(m.targetValue());
+                    }
+                    metricDesc.append("]");
+                    stepDescs.add(metricDesc.toString());
+                } else {
+                    stepDescs.add(stepTitle);
+                }
+            }
+            sb.append(String.join("; ", stepDescs)).append(")");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 
     private static String deriveTitle(String firstMessage) {
         String trimmed = firstMessage.strip();
