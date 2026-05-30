@@ -394,8 +394,9 @@ export function GoalsChat({
         </div>
       </aside>
 
-      {/* Chat surface */}
-      <section className="flex min-h-[60vh] flex-col rounded-[14px] border-[0.5px] border-border-default bg-surface">
+      {/* Chat surface — height is viewport-bounded so the messages area
+          scrolls internally and the Composer stays pinned at the bottom. */}
+      <section className="flex h-[calc(100vh-220px)] min-h-[480px] max-h-[820px] flex-col overflow-hidden rounded-[14px] border-[0.5px] border-border-default bg-surface">
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {isEmpty ? (
             <EmptyState onPick={(p) => void send(p)} disabled={streaming} />
@@ -549,7 +550,7 @@ function Composer({
     }
   }
   return (
-    <div className="border-t-[0.5px] border-border-subtle p-3">
+    <div className="shrink-0 border-t-[0.5px] border-border-subtle p-3">
       <div className="flex items-end gap-2">
         <textarea
           value={value}
