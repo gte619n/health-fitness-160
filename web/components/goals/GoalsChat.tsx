@@ -397,7 +397,7 @@ export function GoalsChat({
       {/* Chat surface — height is viewport-bounded so the messages area
           scrolls internally and the Composer stays pinned at the bottom. */}
       <section className="flex h-[calc(100vh-220px)] min-h-[480px] max-h-[820px] flex-col overflow-hidden rounded-[14px] border-[0.5px] border-border-default bg-surface">
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {isEmpty ? (
             <EmptyState onPick={(p) => void send(p)} disabled={streaming} />
           ) : (
