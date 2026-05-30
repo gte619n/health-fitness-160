@@ -1,5 +1,25 @@
 # IMPL-AND-03: Android — Medications
 
+> **⚠️ Contract update (2026-05, post PR #8 "dosing periods").** This spec was
+> originally written against the early IMPL-05 medications contract. The
+> backend + web have since added **dated dosage periods** and three new
+> behaviors. Android must account for all of these (details inline, marked
+> **[PR#8]**):
+> - `Medication.dosagePeriods: List<DosagePeriod>` — the dated dose history is
+>   now the source of truth; scalar `dose`/`unit` mirror the active period.
+> - `POST /api/me/medications/{id}/dosage` — change dose effective on a date
+>   (closes the open period, opens a new one).
+> - `POST /api/me/medications/{id}/reactivate` — resume a discontinued med
+>   from a resume date.
+> - `UpdateMedicationRequest.startDate` — the medication start date is now
+>   editable; `discontinue` accepts an explicit `endDate`.
+> - **`DayOfWeek` is lowercase on the wire** (`"mon"`…`"sun"`) — the backend
+>   registers a Jackson key (de)serializer; the Android Moshi adapter must
+>   mirror it or `FrequencyConfig.specificDays` round-trips will fail.
+>
+> "Out of scope: backend changes" below is **no longer true** — the backend
+> contract changed; Android consumes the new shapes (no new backend work).
+
 ## Goal
 
 Bring the medications domain to the Android phone app at full feature parity
@@ -40,11 +60,22 @@ In scope:
 - **Medication detail screen** at `medication/{medicationId}` route:
   - Drug image, name, category, form, current dose + frequency + time
     slots
+  - **Dosing history** — the dated `dosagePeriods` timeline (newest first,
+    each row `dose unit · startDate – endDate`, the open period marked
+    "Current" with `– Present`). Render only when more than one period
+    exists. **[PR#8]**
   - Dose-change history (chronological list from
     `MedicationDetailResponse.history`)
   - 30-day adherence calendar / sparkline
   - Correlated blood markers (read-only chip row)
-  - Edit, Discontinue (reason picker), Delete actions
+  - Editable **start date** (via Edit) and, when discontinuing, an
+    explicit **end date** picker. **[PR#8]**
+  - Edit, **Change dose** (effective-date picker → `POST .../dosage`),
+    Discontinue (reason picker + end-date), **Resume** (shown only when
+    `status == DISCONTINUED` → resume-date picker → `POST .../reactivate`),
+    Delete actions. **[PR#8]** Dose is changed through the dedicated
+    Change-dose flow so it builds dated history — the plain Edit form no
+    longer edits `dose` directly (mirrors web).
 - **Today's Doses card** on the dashboard, replacing the fixture med row
   in `TodayCard.kt`:
   - Sourced from `GET /api/me/medications/today`
@@ -75,8 +106,15 @@ Out of scope (explicitly deferred):
   domain (so old web-created records round-trip) but the Add/Edit flow
   hides it behind the same simple/PRN/Weekly UI web exposes today —
   matches current web behavior.
-- **Backend changes.** All endpoints already exist (IMPL-05 landed on the
-  web side). Android consumes the existing shapes verbatim.
+- **Backend changes.** No new backend work is required, but note the
+  contract is **not** the original IMPL-05 shape — it includes the PR #8
+  dosing-period additions (see the contract-update banner at the top).
+  Android consumes the current shapes verbatim.
+- **Editing past dosage periods.** The backend supports correcting history
+  by submitting a full `dosagePeriods` array on `PUT`, but the Android V1
+  UI only *displays* the timeline and changes the dose forward via
+  `/dosage`. A history-correction editor is deferred (matches web, which
+  also defers it).
 
 ## Decisions
 
@@ -95,6 +133,11 @@ Out of scope (explicitly deferred):
 | Custom medication entries | When no `drugId` is set (manual entry), display `medication.customName` and fall back to a generic form-shaped placeholder image. Mirrors web's `medication.customName ?? drug?.name` rendering. |
 | Discontinue reason enum | Mirror web exactly: `COMPLETED`, `SIDE_EFFECTS`, `SWITCHED`, `COST`, `OTHER`. Labels live in `core-domain` `DiscontinueReasonLabels`. |
 | Date types | Wire `startDate` / `endDate` as `LocalDate` via Moshi `LocalDateAdapter` from IMPL-AND-00. `Instant` for `takenAt`. |
+| Dosage periods **[PR#8]** | `Medication.dosagePeriods: List<DosagePeriod>` is the canonical dose history; the active period has `endDate == null`. Scalar `dose`/`unit` mirror the active period — keep reading them for card/summary display, but render the timeline from `dosagePeriods`. End dates are **exclusive** (a closed period's `endDate` equals the next period's `startDate`); subtract a day only for human-readable ranges. |
+| Change dose **[PR#8]** | A dedicated `changeDose()` repository call hitting `POST /api/me/medications/{id}/dosage` with `{ dose, unit?, startDate?, changeNotes? }`. Backend closes the open period at `startDate` and opens a new one; also writes a `DOSE_CHANGE` history entry. The Edit form drops its dose field. |
+| Reactivate **[PR#8]** | `reactivate()` → `POST /api/me/medications/{id}/reactivate` with `{ resumeDate? }`. Reopens dosing from `resumeDate` (gap stays visible in history). "Resume" button shows only for `DISCONTINUED` meds. |
+| Editable start / end dates **[PR#8]** | `UpdateMedicationRequest` gains `startDate: LocalDate?` (shifts the earliest dosage period's start). `discontinue` sends an explicit `endDate` (defaults to today) that closes the open period. |
+| `DayOfWeek` wire case **[PR#8]** | The backend serializes `DayOfWeek` map/enum values as **lowercase** (`"mon"`…`"sun"`) via a Jackson key (de)serializer. The Moshi adapter for `FrequencyConfig.specificDays` (and any `DayOfWeek`) must encode lowercase and decode case-insensitively, or weekly-schedule round-trips break. Mirror the web `DayOfWeek = 'mon'\|…` contract, not the uppercase enum name. |
 
 ## Per-module deliverables
 
@@ -123,6 +166,8 @@ enum class FrequencyType { DAILY, WEEKLY, MONTHLY, PRN, CYCLE }
 
 enum class TimeWindow { MORNING, AFTERNOON, EVENING, BEDTIME }
 
+// [PR#8] Domain enum is uppercase, but the WIRE form is lowercase ("mon"…).
+// The Moshi adapter must map both directions (see DTO/mapper section).
 enum class DayOfWeek { MON, TUE, WED, THU, FRI, SAT, SUN }
 
 enum class DiscontinueReason { COMPLETED, SIDE_EFFECTS, SWITCHED, COST, OTHER }
@@ -161,6 +206,17 @@ data class TimeSlot(
     val dose: Double,
 )
 
+// [PR#8] Dated dose history. The active/current period has endDate == null.
+// End dates are exclusive (a closed period's end == the next period's start).
+data class DosagePeriod(
+    val dose: Double,
+    val unit: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate? = null,
+) {
+    val isActive: Boolean get() = endDate == null
+}
+
 data class AdherenceSummary(
     val last30Days: List<DayAdherence>,
     val percentage: Double,
@@ -186,6 +242,7 @@ data class Medication(
     val discontinueReason: DiscontinueReason?,
     val discontinueNotes: String?,
     val correlatedMarkers: List<String>,
+    val dosagePeriods: List<DosagePeriod> = emptyList(),   // [PR#8] dated dose history
     val adherence: AdherenceSummary?,
 ) {
     val displayName: String
@@ -229,12 +286,16 @@ interface MedicationRepository {
     suspend fun get(medicationId: String): MedicationDetail
     suspend fun create(request: CreateMedicationRequest): Medication
     suspend fun update(medicationId: String, request: UpdateMedicationRequest): Medication
+    /** [PR#8] Change dose effective on a date; backend closes the open period + opens a new one. */
+    suspend fun changeDose(medicationId: String, request: ChangeDoseRequest): Medication
     suspend fun discontinue(
         medicationId: String,
         reason: DiscontinueReason,
         notes: String?,
         endDate: LocalDate? = null,
     ): Medication
+    /** [PR#8] Resume a discontinued medication from [resumeDate] (defaults to today server-side). */
+    suspend fun reactivate(medicationId: String, resumeDate: LocalDate? = null): Medication
     suspend fun delete(medicationId: String)
     suspend fun todaysDoses(): List<TodaysDose>
 }
@@ -281,13 +342,24 @@ data class CreateMedicationRequest(
 
 data class UpdateMedicationRequest(
     val customName: String? = null,
-    val dose: Double? = null,
+    val dose: Double? = null,         // legacy; prefer changeDose() for dated history
     val unit: String? = null,
     val frequency: FrequencyConfig? = null,
     val timeSlots: List<TimeSlot>? = null,
     val notes: String? = null,
     val prescribedBy: String? = null,
     val correlatedMarkers: List<String>? = null,
+    val startDate: LocalDate? = null,         // [PR#8] edit the medication start date
+    val dosagePeriods: List<DosagePeriod>? = null, // [PR#8] full-replacement history correction (V1 unused)
+    val changeNotes: String? = null,
+)
+
+// [PR#8] effective-dated dose change. unit defaults to the med's current unit;
+// startDate defaults to today server-side.
+data class ChangeDoseRequest(
+    val dose: Double,
+    val unit: String? = null,
+    val startDate: LocalDate? = null,
     val changeNotes: String? = null,
 )
 ```
@@ -348,8 +420,16 @@ internal interface MedicationsApi {
     @PUT("/api/me/medications/{id}")
     suspend fun update(@Path("id") id: String, @Body body: UpdateMedicationDto): MedicationDto
 
+    // [PR#8] change dose effective on a date (dated history)
+    @POST("/api/me/medications/{id}/dosage")
+    suspend fun changeDose(@Path("id") id: String, @Body body: ChangeDoseDto): MedicationDto
+
     @POST("/api/me/medications/{id}/discontinue")
     suspend fun discontinue(@Path("id") id: String, @Body body: DiscontinueDto): MedicationDto
+
+    // [PR#8] resume a discontinued medication
+    @POST("/api/me/medications/{id}/reactivate")
+    suspend fun reactivate(@Path("id") id: String, @Body body: ReactivateDto): MedicationDto
 
     @DELETE("/api/me/medications/{id}")
     suspend fun delete(@Path("id") id: String)
@@ -408,11 +488,24 @@ data class MedicationDto(
 // DrugDto, FrequencyConfigDto, TimeSlotDto, AdherenceSummaryDto,
 // MedicationDetailDto, TodaysDoseDto, CreateMedicationDto,
 // UpdateMedicationDto, DiscontinueDto, LogDoseDto — same pattern.
+// [PR#8] ADD: DosagePeriodDto { dose, unit, startDate: LocalDate, endDate: LocalDate? },
+//        plus `dosagePeriods: List<DosagePeriodDto>` on MedicationDto and
+//        MedicationDetailDto; ChangeDoseDto { dose, unit?, startDate?, changeNotes? };
+//        ReactivateDto { resumeDate: LocalDate? }; DiscontinueDto gains `endDate: LocalDate?`.
 ```
 
 `MedicationMapper` converts DTO → domain (string-to-enum via
 `enumValueOf<T>()` with safe fallback). Inverse mapper used for write
 paths.
+
+**[PR#8] `DayOfWeek` lowercase adapter.** Register a Moshi adapter (or
+`@ToJson`/`@FromJson` pair) for `DayOfWeek` that writes
+`value.name.lowercase()` and reads `valueOf(it.uppercase())`. Without it,
+`FrequencyConfig.specificDays` fails to (de)serialize against the backend's
+lowercase `"mon"`…`"sun"` keys. This mirrors the backend's
+`DayOfWeekJacksonConfig` (app module) and the web `DayOfWeek = 'mon'\|…`
+type. The same adapter is shared with IMPL-AND-06 (gym hours), which keys a
+`Map<DayOfWeek, HoursSlot>` the same way.
 
 SSE consumer for drug lookup uses the EventSource helper from
 `core-network`:
@@ -832,22 +925,38 @@ Manual on a real device with a connected account:
 4. **Discontinue.** Tap card → detail → Discontinue → reason
    `SWITCHED`, notes "moved to enanthate" → confirm. Card disappears
    from Current, appears in **History** tab with the reason displayed.
-5. **Edit a dose creates history.** From an active med, change dose
-   from 200 mg → 250 mg with `changeNotes = "labs"`. Detail screen
-   shows the dose-change history entry.
-6. **Delete.** From detail, Delete → confirm. Card removed from both
+5. **Change dose creates a dated period + history. [PR#8]** From an active
+   med, tap **Change dose** → 200 mg → 250 mg, effective today, notes
+   "labs". Detail screen's **Dosing history** shows the prior 200 mg period
+   closed at today's date and a new 250 mg "Current" period; the dose-change
+   history list also shows the `DOSE_CHANGE` entry. The card now reads 250 mg.
+6. **Edit start date. [PR#8]** From Edit, change the start date to an
+   earlier date and save; the earliest dosing-history period's start shifts
+   to match.
+7. **Discontinue with an end date. [PR#8]** Discontinue with reason
+   `SWITCHED`, notes "moved to enanthate", and an explicit end date →
+   confirm. The open dosing period closes at that date; the card disappears
+   from **Current** and appears in **History** with the reason displayed.
+8. **Resume a discontinued med. [PR#8]** On a discontinued med, tap
+   **Resume**, pick a resume date → med returns to **Current**; dosing
+   history shows the pause as a gap and a fresh open period from the resume
+   date.
+9. **Delete.** From detail, Delete → confirm. Card removed from both
    tabs; backend returns 404 on subsequent fetch.
-7. **Custom (no-AI) entry.** Open Add → type a garbage string →
-   `not_found` arrives → tap "Add manually" → fill custom name / form
-   / dose / unit → save. Card appears with the generic form-shaped
-   fallback image.
-8. **Foldable layout.** On a Pixel Fold inner display, the grid is 3
-   columns; on phone portrait, 1 column.
+10. **Custom (no-AI) entry.** Open Add → type a garbage string →
+    `not_found` arrives → tap "Add manually" → fill custom name / form
+    / dose / unit → save. Card appears with the generic form-shaped
+    fallback image.
+11. **Foldable layout.** On a Pixel Fold inner display, the grid is 3
+    columns; on phone portrait, 1 column.
 
 Automated:
 
 - `./gradlew :core-domain:test :core-data:test :feature-medical:test`
-  passes (includes Turbine + MockWebServer tests above).
+  passes (includes Turbine + MockWebServer tests above). Add coverage for
+  the **[PR#8]** additions: `DosagePeriod` round-trip in the mapper, the
+  `DayOfWeek` lowercase adapter, and `changeDose` / `reactivate` repository
+  calls (MockWebServer).
 - `./gradlew :app:assembleDebug` succeeds; APK installs.
 
 ## Dependencies
@@ -862,8 +971,10 @@ Automated:
   predecessor. Adds the `TodayCard.kt` wiring this IMPL modifies. Not
   technically blocking (this IMPL can land first and stub the dashboard
   card), but easier to land after.
-- **Backend IMPL-05 (Medications)** — already landed. No backend changes
-  required by this IMPL.
+- **Backend medications (IMPL-05 + PR #8 dosing periods)** — already
+  landed on `main`. No backend changes required by this IMPL; Android
+  consumes the current shapes (including `dosagePeriods`, `/dosage`,
+  `/reactivate`, editable start/end dates, lowercase `DayOfWeek`).
 
 ## Open questions resolved before implementation
 
@@ -879,6 +990,9 @@ Automated:
 - **Discontinue reason** — modeled as enum, mirrors web exactly.
 - **Time windows** — fixed hard-coded boundaries, not locale-dependent,
   per IMPL-05.
+- **Dose changes vs. plain edit [PR#8]** — dose is changed only through
+  the dedicated Change-dose flow (`/dosage`, dated history); the Edit form
+  no longer carries a dose field. Mirrors web post-PR #8.
 
 ## Open questions deferred to implementation
 
@@ -893,6 +1007,10 @@ Automated:
 - **History-entry truncation** — detail screen shows full history; if
   long-running protocols generate 50+ entries, consider a "show more"
   affordance. Defer until real data shows it.
+- **Editing past dosage periods [PR#8]** — the backend accepts a full
+  `dosagePeriods` array on `PUT` for history correction, but Android V1
+  only displays the timeline + changes dose forward. Add a period-editor
+  if real usage needs back-dated corrections (web defers it too).
 - **Wear OS dose-logging** — out of scope for this IMPL but a likely
   follow-up; the `LogDoseUseCase` shape established here should be
   callable from a Wear `Tile` later.

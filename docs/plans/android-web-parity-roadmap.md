@@ -1,7 +1,7 @@
 # Android ↔ Web Feature Parity Roadmap
 
 **Date:** 2026-05-26
-**Status:** Discovery / planning — not yet sequenced into IMPL specs
+**Status:** Discovery / planning — specs IMPL-AND-00..06 + IMPL-AND-12 (goals) drafted; reconciled with `main` (goals/IMPL-12 + PR #8 dosing/hours) on 2026-05-30
 
 This document compares the current state of the **web** (Next.js 15) and **Android** (Compose) clients, identifies the gap, and proposes a phased roadmap to bring Android to feature parity. It is a living survey, not an authoritative spec — individual workstreams should be split into IMPL specs under `docs/specs/` before implementation.
 
@@ -152,6 +152,24 @@ Android has **no live backend integration**. Retrofit, Moshi, and Hilt are on th
 | Unit preferences (lb/kg, in/cm) | ❌ Hard-coded in components | ❌ | Cross-cutting; both clients |
 
 **Verdict:** Settings/profile is a small build — block out as a single screen with sub-sections.
+
+---
+
+### 2.7b Goals
+
+| Capability | Web | Android | Gap |
+|---|---|---|---|
+| Goal list (cards + phase progress) | ✅ `/me/goals` | ❌ | New screen |
+| Goal detail roadmap (phases/steps) | ✅ `GoalDeepResponse` | ❌ | New screen |
+| Metric-bound steps + auto-evaluation | ✅ server-evaluated | ❌ | Display evaluated status |
+| AI goal-chat (SSE) → editable proposal → commit | ✅ | ❌ | SSE consumer + proposal card |
+| Manual goal create / edit / delete / reorder | ✅ | ❌ | Forms + reorder |
+
+**Verdict:** Full feature build to web parity. Goals shipped on
+web/backend (IMPL-12) but had **no Android spec** — now covered by
+**IMPL-AND-12**. Goal-chat reuses the SSE consumer from IMPL-AND-03;
+metric bindings reference the Meds/Blood/Body-comp read models, so
+sequence Goals after those domains land.
 
 ---
 
@@ -322,6 +340,21 @@ These are prerequisites for almost any domain work. They should be sequenced **b
 
 **Outcome:** Gym parity (minus admin-flavored features).
 
+### Phase 6.5 — Goals (IMPL-AND-12)
+
+Goals + phases + steps + metric bindings + AI goal-chat, to parity with
+web's IMPL-12 (`/me/goals`). Numbered **IMPL-AND-12** to match the
+backend/web spec (`IMPL-12-goals-module.md`) rather than the AND-0X
+sequence. Sequence after Medications/Blood/Body-comp (its metric bindings
+read those domains' models) and before/alongside Workouts.
+
+1. Goal list + detail (roadmap timeline, metric chips, evaluated status)
+2. Manual create/edit + reorder (optimistic)
+3. AI goal-chat (SSE) → editable proposal card → commit
+4. `feature-goals` module + nav destination
+
+**Outcome:** Goals parity with web. Spec: `docs/specs/IMPL-AND-12-goals-module.md`.
+
 ### Phase 7 — Greenfield: Active workout logging
 *Requires its own ADR before scoping. Likely Android-first.*
 1. Define workout data model (exercises, sets, reps, weight, duration, HR)
@@ -396,3 +429,4 @@ To prevent scope creep, the following are **out of scope** for parity (unless re
 3. **Open an ADR for active workout logging** before Phase 7 work begins.
 4. **Decide PDF viewer approach** before Phase 4 (blood).
 5. Update `android/CLAUDE.md` once Hilt + NavHost land (current doc notes Hilt is deferred).
+6. Sequence **IMPL-AND-12 (Goals)** after the Meds/Blood/Body-comp domains (its metric bindings depend on them); goal-chat reuses the IMPL-AND-03 SSE consumer.

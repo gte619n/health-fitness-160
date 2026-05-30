@@ -59,7 +59,8 @@ Out of scope (deferred):
 | Polymorphic JSON | Moshi `PolymorphicJsonAdapterFactory.of(EquipmentSpec::class.java, "specSchema")` registered on the app `Moshi` instance. Each subtype's labels match the backend uppercase enum names. `withDefaultValue(Bodyweight)` for forward compatibility — unknown schemas degrade to "no specs" rather than crashing the list. |
 | Per-location override storage | Web's `Location.equipmentSpecs` is `Map<equipmentId, Map<String, Any>>` — a free-form override that's *not* a polymorphic `EquipmentSpec`. Android mirrors that: `Location.equipmentSpecs: Map<String, Map<String, Any?>>`. The override sheet hydrates the catalog default into the same per-category form, lets the user edit, and PATCHes the resulting `specs` map back. The map is intentionally untyped — partial overrides are valid (e.g., only `maxWeight` differs from catalog). |
 | Cover-photo upload | `ActivityResultContracts.GetContent("image/*")` → `Uri` → resolve to a `ContentResolver` `InputStream`, copy into a `RequestBody` chunk, send as `multipart/form-data` field `file`. New `MultipartUploadClient` helper in `core-network` so blood/DEXA can reuse. No client-side resize (backend already serves transcoded WebP). |
-| Hours form representation | `HoursMatrix` composable holds a `Map<DayOfWeek, HoursSlot?>`. Submitting maps to the API as `Map<DayOfWeek, HoursSlot>` excluding null entries (closed days). When `is24Hours` is `true` the matrix is hidden and the API payload omits `hours`. |
+| Hours form representation | `HoursMatrix` composable holds a `Map<DayOfWeek, HoursSlot?>`. Submitting maps to the API as `Map<DayOfWeek, HoursSlot>` excluding null entries (closed days). When `is24Hours` is `true` the matrix is hidden and the API payload omits `hours`. **[PR#8]** Times are **15-minute-increment dropdowns** (00:00…23:45), not a free TimePicker — matches web's `HoursEditor` `TIME_OPTIONS`. Each day toggles **Closed** (clears the row → null) and offers a per-day “copy from the day above” action. |
+| `DayOfWeek` wire case **[PR#8]** | The `hours` map is keyed by `DayOfWeek`, serialized **lowercase** on the wire (`"mon"`…`"sun"`) by the backend's Jackson key (de)serializer. The Moshi adapter must encode lowercase and decode case-insensitively, or the hours map fails to (de)serialize — this was the cause of the gym-hours save-500 fixed in PR #8. Reuse the shared `DayOfWeek` Moshi adapter from IMPL-AND-03. |
 | Amenities | Hardcoded list of 10 IDs that mirror `web/lib/types/gym.ts` `AMENITIES` exactly. Stored on the wire as `List<String>` of IDs (lowercase). No localization in this IMPL — labels are English-only. |
 | Default-gym handling | `POST /api/me/gyms/{id}/default` is atomic on the backend — the only client responsibility is to refresh the list after the call. ViewModel optimistically flips the `isDefault` flag on the active item and unflips siblings, with rollback on error. |
 | Equipment catalog search | Catalog list inside the add-equipment sheet uses a debounced (300ms) search-text-flow → `GET /api/equipment?search=...&category=...&sub=...`. Server-side filtering — no client cache of the whole catalog. |
@@ -96,7 +97,8 @@ Package: `com.gte619n.healthfitness.core.domain.workouts`
 // Location.kt
 enum class DayOfWeek { MON, TUE, WED, THU, FRI, SAT, SUN }
 
-data class HoursSlot(val open: String, val close: String)   // "HH:mm"
+data class HoursSlot(val open: String, val close: String)   // "HH:mm", 15-min increments
+// [PR#8] DayOfWeek wire form is lowercase ("mon"..); Moshi adapter must map both ways.
 
 enum class Amenity(val id: String, val label: String) {
     TWENTY_FOUR_HR("24hr", "24-Hour Access"),
@@ -576,9 +578,13 @@ Reusable composables (under `feature.workouts.ui/`):
   with type `"image/*"`. Renders the current photo (`AsyncImage`) or a
   placeholder; the launcher result `Uri` is converted to `PendingUpload`
   via `UriUploads` and handed to `onPick`.
-- `HoursMatrix(state, onChange)` — 7 rows of {day label, open
-  TimePicker, close TimePicker, "Closed" toggle}. Material3
-  `TimePickerDialog`.
+- `HoursMatrix(state, onChange)` — 7 rows of {day label, "copy from
+  above" button (rows 2-7), open dropdown, close dropdown, "Closed"
+  toggle}. **[PR#8]** Open/close are **15-minute-increment dropdowns**
+  (generate `00:00`…`23:45`; display 12-hour labels, store 24-hour
+  `HH:mm`) rather than a Material3 `TimePickerDialog` — mirrors web's
+  `HoursEditor`. Tapping the day label (or "Closed") clears the row to
+  null; the per-day ↑ copies the previous day's slot.
 - `AmenityChipGrid(selected, onToggle)` — flow row of 10
   `FilterChip(Amenity.label)`.
 - `EquipmentRow(equipment, override, onTap, onRemove)` — thumbnail,
@@ -704,9 +710,10 @@ Resolved:
 
 Deferred to implementation:
 
-- **TimePicker UX on small screens** — Material3 `TimePickerDialog` is
-  the default; if the modal feels heavy in QA, fall back to a
-  `DropdownMenu` of 30-minute slots.
+- **Time entry UX — RESOLVED [PR#8].** Web settled on 15-minute-increment
+  dropdowns (no modal TimePicker), so Android matches: per-field exposed
+  dropdowns of `00:00`…`23:45`. This also sidesteps the
+  modal-TimePicker-on-small-screens concern entirely.
 - **Coil placeholder palette** — initial set ships the 7 category vectors
   in `core-ui`. If the catalog grows new top-level categories, the
   composable falls back to a generic dumbbell silhouette.
