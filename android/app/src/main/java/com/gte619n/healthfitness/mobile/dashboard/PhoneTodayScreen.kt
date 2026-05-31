@@ -183,7 +183,12 @@ private fun QuickLogTiles(onNavigate: (route: String) -> Unit = {}) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        QuickTile(DashboardIcons.Barbell, "Workout", Modifier.weight(1f))
+        QuickTile(
+            DashboardIcons.Barbell,
+            "Workout",
+            Modifier.weight(1f),
+            onClick = { onNavigate(com.gte619n.healthfitness.mobile.nav.Routes.WORKOUTS) },
+        )
         // IMPL-13: the "Food" tile opens the nutrition Today screen.
         QuickTile(
             DashboardIcons.Bowl,
@@ -191,8 +196,18 @@ private fun QuickLogTiles(onNavigate: (route: String) -> Unit = {}) {
             Modifier.weight(1f),
             onClick = { onNavigate(com.gte619n.healthfitness.mobile.nav.Routes.NUTRITION) },
         )
-        QuickTile(DashboardIcons.Scale, "Weight", Modifier.weight(1f))
-        QuickTile(DashboardIcons.Pill, "Med", Modifier.weight(1f))
+        QuickTile(
+            DashboardIcons.Scale,
+            "Weight",
+            Modifier.weight(1f),
+            onClick = { onNavigate(com.gte619n.healthfitness.mobile.nav.Routes.BODY) },
+        )
+        QuickTile(
+            DashboardIcons.Pill,
+            "Med",
+            Modifier.weight(1f),
+            onClick = { onNavigate(com.gte619n.healthfitness.mobile.nav.Routes.MEDICATIONS) },
+        )
     }
 }
 
@@ -242,10 +257,10 @@ private fun BottomNav(onOpenGoals: () -> Unit, onNavigate: (route: String) -> Un
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 DashboardFallbacks.phoneBottomNav.forEach { dest ->
-                    // "More" → Settings (IMPL-AND-02); "Log" → Goals so the
-                    // phone keeps a path to the goals surface (IMPL-12).
+                    // "More" → the feature hub; "Log" → Goals so the phone
+                    // keeps a path to the goals surface (IMPL-12).
                     val onClick: () -> Unit = when (dest.label) {
-                        "More" -> ({ onNavigate(com.gte619n.healthfitness.feature.settings.nav.SettingsRoutes.SETTINGS) })
+                        "More" -> ({ onNavigate(com.gte619n.healthfitness.mobile.nav.Routes.MORE) })
                         "Log" -> onOpenGoals
                         else -> ({})
                     }

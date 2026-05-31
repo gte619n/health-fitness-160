@@ -35,6 +35,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gte619n.healthfitness.domain.dashboard.WeightSummary
+import com.gte619n.healthfitness.domain.prefs.UnitFormat
+import com.gte619n.healthfitness.domain.prefs.WeightUnit
 import com.gte619n.healthfitness.feature.medical.nav.MedicationRoutes
 import com.gte619n.healthfitness.feature.medical.today.TodaysDosesCard
 import com.gte619n.healthfitness.ui.TessetaMark
@@ -49,6 +51,7 @@ fun FoldableDashboardScreen(
 ) {
     val vm: DashboardViewModel = hiltViewModel()
     val ui by vm.uiState.collectAsStateWithLifecycle()
+    val weightUnit by vm.weightUnit.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
     Box(
         modifier = Modifier
@@ -74,7 +77,7 @@ fun FoldableDashboardScreen(
                     placeholderHeightDp = 200,
                     onRetry = vm::retryBodyComposition,
                 ) { summary ->
-                    BodyCompositionHero(summary = summary)
+                    BodyCompositionHero(summary = summary, weightUnit = weightUnit)
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(
@@ -296,7 +299,7 @@ private fun FoldableVitalsRow() {
 }
 
 @Composable
-private fun BodyCompositionHero(summary: WeightSummary?) {
+private fun BodyCompositionHero(summary: WeightSummary?, weightUnit: WeightUnit) {
     HfCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(
@@ -316,9 +319,9 @@ private fun BodyCompositionHero(summary: WeightSummary?) {
                     } else {
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             HeroNumeric(
-                                primary = "%.1f".format(summary.latestLb),
-                                unit = "lb",
-                                delta = deltaLabel(summary.ninetyDayDeltaLb, "90d"),
+                                primary = UnitFormat.weightValueString(summary.latestLb, weightUnit),
+                                unit = UnitFormat.weightLabel(weightUnit),
+                                delta = deltaLabel(summary.ninetyDayDeltaLb?.let { UnitFormat.weightValue(it, weightUnit) }, "90d"),
                                 primarySizeSp = 30,
                                 unitSizeSp = 12,
                             )
@@ -331,7 +334,7 @@ private fun BodyCompositionHero(summary: WeightSummary?) {
                                 unitSizeSp = 10,
                             )
                             HeroNumeric(
-                                primary = summary.latestLeanMassLb?.let { "%.1f".format(it) } ?: "—",
+                                primary = summary.latestLeanMassLb?.let { UnitFormat.weightValueString(it, weightUnit) } ?: "—",
                                 unit = "lean",
                                 delta = "",
                                 primarySizeSp = 15,
