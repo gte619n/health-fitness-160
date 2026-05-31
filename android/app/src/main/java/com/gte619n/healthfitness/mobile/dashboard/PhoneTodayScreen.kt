@@ -21,6 +21,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,7 +36,13 @@ import com.gte619n.healthfitness.ui.theme.Hf
 import com.gte619n.healthfitness.ui.theme.type
 
 @Composable
-fun PhoneTodayScreen(onOpenGoals: () -> Unit = {}) {
+fun PhoneTodayScreen(
+    onOpenGoals: () -> Unit = {},
+    onStartWorkout: (String) -> Unit = {},
+    onViewWorkoutSummary: (String) -> Unit = {},
+    todayWorkoutViewModel: TodayWorkoutViewModel = hiltViewModel(),
+) {
+    val workoutState by todayWorkoutViewModel.state.collectAsStateWithLifecycle()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -51,9 +60,21 @@ fun PhoneTodayScreen(onOpenGoals: () -> Unit = {}) {
             Spacer(Modifier.height(16.dp))
             PhoneVitalsGrid()
             Spacer(Modifier.height(11.dp))
+            TodaysWorkoutCard(
+                state = workoutState,
+                onStart = onStartWorkout,
+                onViewSummary = onViewWorkoutSummary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(11.dp))
             TodayCard(modifier = Modifier.fillMaxWidth(), showHrInMeta = false)
             Spacer(Modifier.height(11.dp))
-            QuickLogTiles()
+            QuickLogTiles(
+                onWorkout = {
+                    (workoutState as? TodayWorkoutViewModel.UiState.Ready)
+                        ?.let { onStartWorkout(it.session.sessionId) }
+                },
+            )
             Spacer(Modifier.height(13.dp))
             RecentFeed(entries = DashboardFixtures.recentPhone, showViewAll = true, modifier = Modifier.fillMaxWidth())
         }
@@ -107,12 +128,12 @@ private fun PhoneVitalsGrid() {
 }
 
 @Composable
-private fun QuickLogTiles() {
+private fun QuickLogTiles(onWorkout: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        QuickTile(DashboardIcons.Barbell, "Workout", Modifier.weight(1f))
+        QuickTile(DashboardIcons.Barbell, "Workout", Modifier.weight(1f), onClick = onWorkout)
         QuickTile(DashboardIcons.Bowl, "Food", Modifier.weight(1f))
         QuickTile(DashboardIcons.Scale, "Weight", Modifier.weight(1f))
         QuickTile(DashboardIcons.Pill, "Med", Modifier.weight(1f))
@@ -120,11 +141,12 @@ private fun QuickLogTiles() {
 }
 
 @Composable
-private fun QuickTile(icon: ImageVector, label: String, modifier: Modifier) {
+private fun QuickTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit = {}) {
     Column(
         modifier = modifier
             .background(Hf.colors.surface, RoundedCornerShape(10.dp))
             .border(0.5.dp, Hf.colors.borderDefault, RoundedCornerShape(10.dp))
+            .clickable { onClick() }
             .padding(vertical = 13.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),

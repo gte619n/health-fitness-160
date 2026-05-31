@@ -11,6 +11,9 @@ import com.gte619n.healthfitness.feature.goals.GOAL_ID_ARG
 import com.gte619n.healthfitness.feature.goals.GoalRoadmapRoute
 import com.gte619n.healthfitness.feature.goals.GoalsChatRoute
 import com.gte619n.healthfitness.feature.goals.GoalsListRoute
+import com.gte619n.healthfitness.feature.workouts.session.WorkoutOverviewRoute
+import com.gte619n.healthfitness.feature.workouts.session.WorkoutPlayerRoute
+import com.gte619n.healthfitness.feature.workouts.session.WorkoutSummaryRoute
 import com.gte619n.healthfitness.mobile.DashboardRoot
 
 // Minimal app NavHost (IMPL-12 assumption 15). The existing dashboard screens
@@ -21,6 +24,14 @@ object Routes {
     const val GOALS_CHAT = "goals/chat"
     const val GOAL_DETAIL = "goals/{$GOAL_ID_ARG}"
     fun goalDetail(goalId: String) = "goals/$goalId"
+
+    const val SESSION_ID_ARG = "sessionId"
+    const val WORKOUT_OVERVIEW = "workout/overview/{$SESSION_ID_ARG}"
+    const val WORKOUT_PLAYER = "workout/player/{$SESSION_ID_ARG}"
+    const val WORKOUT_SUMMARY = "workout/summary/{$SESSION_ID_ARG}"
+    fun workoutOverview(sessionId: String) = "workout/overview/$sessionId"
+    fun workoutPlayer(sessionId: String) = "workout/player/$sessionId"
+    fun workoutSummary(sessionId: String) = "workout/summary/$sessionId"
 }
 
 @Composable
@@ -31,6 +42,44 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
             DashboardRoot(
                 widthClass = widthClass,
                 onOpenGoals = { navController.navigate(Routes.GOALS_LIST) },
+                onStartWorkout = { sessionId -> navController.navigate(Routes.workoutOverview(sessionId)) },
+                onViewWorkoutSummary = { sessionId -> navController.navigate(Routes.workoutSummary(sessionId)) },
+            )
+        }
+        composable(
+            route = Routes.WORKOUT_OVERVIEW,
+            arguments = listOf(navArgument(Routes.SESSION_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString(Routes.SESSION_ID_ARG).orEmpty()
+            WorkoutOverviewRoute(
+                sessionId = sessionId,
+                onStartWorkout = { id -> navController.navigate(Routes.workoutPlayer(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.WORKOUT_PLAYER,
+            arguments = listOf(navArgument(Routes.SESSION_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString(Routes.SESSION_ID_ARG).orEmpty()
+            WorkoutPlayerRoute(
+                sessionId = sessionId,
+                onFinished = { id ->
+                    navController.navigate(Routes.workoutSummary(id)) {
+                        popUpTo(Routes.WORKOUT_OVERVIEW) { inclusive = true }
+                    }
+                },
+                onExit = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.WORKOUT_SUMMARY,
+            arguments = listOf(navArgument(Routes.SESSION_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString(Routes.SESSION_ID_ARG).orEmpty()
+            WorkoutSummaryRoute(
+                sessionId = sessionId,
+                onDone = { navController.popBackStack(Routes.DASHBOARD, inclusive = false) },
             )
         }
         composable(Routes.GOALS_LIST) {
