@@ -3,6 +3,7 @@ package com.gte619n.healthfitness.feature.workouts.session
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gte619n.healthfitness.data.workout.WorkoutRepository
+import com.gte619n.healthfitness.data.workout.WorkoutSessionController
 import com.gte619n.healthfitness.domain.workout.CompletedSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ data class WorkoutSummaryUiState(
 @HiltViewModel
 class WorkoutSummaryViewModel @Inject constructor(
     private val repository: WorkoutRepository,
+    private val controller: WorkoutSessionController,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkoutSummaryUiState())
@@ -31,6 +33,10 @@ class WorkoutSummaryViewModel @Inject constructor(
     fun load(sessionId: String) {
         if (loadedId == sessionId && _state.value.completed != null) return
         loadedId = sessionId
+        // The session is finished — clear the live controller (and its persisted
+        // timer snapshot) so the foreground service tears down and a fresh
+        // workout starts clean next time.
+        controller.reset()
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {

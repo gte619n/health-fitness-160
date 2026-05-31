@@ -1,8 +1,15 @@
 package com.gte619n.healthfitness.mobile.nav
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
+import com.gte619n.healthfitness.mobile.workouts.WorkoutSessionService
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -62,6 +69,15 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
             arguments = listOf(navArgument(Routes.SESSION_ID_ARG) { type = NavType.StringType }),
         ) { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString(Routes.SESSION_ID_ARG).orEmpty()
+            // Promote to a foreground service while the workout is live so the
+            // timer keeps running and the ongoing notification (log set / pause
+            // / skip rest) is available with the screen off.
+            val context = LocalContext.current
+            val notifPermission = rememberNotificationPermissionLauncher()
+            LaunchedEffect(sessionId) {
+                notifPermission()
+                WorkoutSessionService.start(context)
+            }
             WorkoutPlayerRoute(
                 sessionId = sessionId,
                 onFinished = { id ->
@@ -108,5 +124,21 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
         ) {
             GoalRoadmapRoute(onBack = { navController.popBackStack() })
         }
+    }
+}
+
+// Returns a callback that requests POST_NOTIFICATIONS (API 33+) once, so the
+// workout's ongoing controls notification can be shown. On older OSes it's a
+// no-op (the permission is granted at install time).
+@Composable
+private fun rememberNotificationPermissionLauncher(): () -> Unit {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        return remember { {} }
+    }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* best-effort; the workout proceeds regardless of the grant */ }
+    return remember(launcher) {
+        { launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
     }
 }

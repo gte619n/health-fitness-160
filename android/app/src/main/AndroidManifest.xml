@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Active-workout foreground service + its ongoing controls notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Health Connect permission placeholders. Each capability becomes a separate
          android.permission.health.READ_*/WRITE_* line when wired in (IMPL-XX).
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
@@ -40,11 +45,17 @@
             </intent-filter>
         </service>
 
-        <!-- Foreground service for active workout sessions. Wired up in IMPL-XX.
+        <!-- Foreground service for active workout sessions: keeps the timer +
+             state alive when the screen is off and renders the ongoing controls
+             notification (log set / pause / skip rest / +15s). -->
         <service
             android:name=".workouts.WorkoutSessionService"
             android:foregroundServiceType="health"
             android:exported="false" />
-        -->
+
+        <!-- Handles the workout notification's action-button taps. -->
+        <receiver
+            android:name=".workouts.WorkoutActionReceiver"
+            android:exported="false" />
     </application>
 </manifest>
