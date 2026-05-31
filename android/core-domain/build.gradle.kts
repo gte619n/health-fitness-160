@@ -24,4 +24,6 @@ dependencies {
     // Goals (IMPL-12): domain models carry Moshi annotations so they double as
     // the JSON wire contract with the backend.
     api(libs.moshi)
+
+    testImplementation(libs.junit)
 }
