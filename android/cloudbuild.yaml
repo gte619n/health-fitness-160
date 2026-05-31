@@ -71,7 +71,8 @@ options:
   logging: CLOUD_LOGGING_ONLY
   # E2_HIGHCPU_8 has only 8 GB RAM; the release lint-vital + dex phase with a
   # 4 GB Gradle heap and parallel module workers OOM'd the daemon ("Gradle build
-  # daemon disappeared"). Bump to E2_STANDARD_8 (8 vCPU / 32 GB) for headroom.
-  machineType: E2_STANDARD_8
+  # daemon disappeared"). Bump to E2_HIGHCPU_32 (32 vCPU / 32 GB) — the valid
+  # Cloud Build machineType enum value with the most RAM.
+  machineType: E2_HIGHCPU_32
 
 timeout: 1800s
