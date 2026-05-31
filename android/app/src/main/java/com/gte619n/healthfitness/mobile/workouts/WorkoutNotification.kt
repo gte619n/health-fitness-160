@@ -23,6 +23,11 @@ object WorkoutNotification {
     const val CHANNEL_ID = "workout_session"
     const val NOTIFICATION_ID = 4201
 
+    // Separate high-importance channel so the "rest over" alert can pop a
+    // heads-up + vibrate, while the ongoing controls notification stays quiet.
+    const val ALERT_CHANNEL_ID = "workout_rest_alert"
+    const val ALERT_NOTIFICATION_ID = 4202
+
     // Broadcast actions handled by WorkoutActionReceiver.
     const val ACTION_LOG_SET = "com.gte619n.healthfitness.workout.LOG_SET"
     const val ACTION_PAUSE = "com.gte619n.healthfitness.workout.PAUSE"
@@ -31,7 +36,8 @@ object WorkoutNotification {
     const val ACTION_ADD_TIME = "com.gte619n.healthfitness.workout.ADD_TIME"
 
     fun ensureChannel(context: Context) {
-        val channel = NotificationChannel(
+        val nm = NotificationManagerCompat.from(context)
+        val ongoing = NotificationChannel(
             CHANNEL_ID,
             "Active workout",
             NotificationManager.IMPORTANCE_LOW, // ongoing; quiet, no sound per update
@@ -40,7 +46,41 @@ object WorkoutNotification {
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        NotificationManagerCompat.from(context).createNotificationChannel(channel)
+        val alert = NotificationChannel(
+            ALERT_CHANNEL_ID,
+            "Rest timer",
+            NotificationManager.IMPORTANCE_HIGH, // heads-up + sound/vibrate
+        ).apply {
+            description = "Alerts you when a rest period is over"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 250, 150, 250)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        nm.createNotificationChannel(ongoing)
+        nm.createNotificationChannel(alert)
+    }
+
+    // One-shot heads-up fired when a rest period elapses on its own. Auto-cancels
+    // on tap; carries a "Log set" action so the user can confirm the upcoming set
+    // straight from the alert.
+    fun buildRestFinished(context: Context, upNextName: String, setOrdinal: Int): Notification {
+        val contentIntent = PendingIntent.getActivity(
+            context, 1,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return NotificationCompat.Builder(context, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Rest over")
+            .setContentText("Up next: $upNextName · Set $setOrdinal")
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_VIBRATE)
+            .addAction(action(context, "Log set", ACTION_LOG_SET))
+            .build()
     }
 
     fun build(context: Context, state: WorkoutSessionState): Notification {

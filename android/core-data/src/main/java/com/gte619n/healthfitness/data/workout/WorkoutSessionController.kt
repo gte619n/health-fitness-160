@@ -12,8 +12,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -23,6 +26,14 @@ import kotlin.math.ceil
 import kotlin.math.max
 
 enum class WorkoutPhase { Idle, Loading, Working, Resting, Paused, Finishing }
+
+// One-shot events the UI / foreground service react to (e.g. a heads-up alert
+// when a rest period elapses on its own). Distinct from the durable state flow.
+sealed interface WorkoutEvent {
+    // A rest timer reached zero by itself (not skipped). Carries the set the
+    // user is now expected to perform, for the "rest over" alert.
+    data class RestFinished(val upNext: PlayerStep.PerformSet) : WorkoutEvent
+}
 
 // Snapshot of the live session shared by the player UI and the foreground
 // notification service. Mirrors what both surfaces need to render.
@@ -64,6 +75,11 @@ class WorkoutSessionController @Inject constructor(
 
     private val _state = MutableStateFlow(WorkoutSessionState())
     val state: StateFlow<WorkoutSessionState> = _state.asStateFlow()
+
+    // extraBufferCapacity so emissions never suspend the (main-immediate) timer
+    // coroutine even if no collector is attached yet.
+    private val _events = MutableSharedFlow<WorkoutEvent>(extraBufferCapacity = 4)
+    val events: SharedFlow<WorkoutEvent> = _events.asSharedFlow()
 
     private val logged = mutableMapOf<String, LoggedSet>()
     private val exerciseCache = mutableMapOf<String, Exercise>()
@@ -137,7 +153,11 @@ class WorkoutSessionController @Inject constructor(
             }
             is PlayerStep.Rest -> {
                 loadExercise(step.upNext.exercise.exerciseId)
-                beginTimer(step.seconds, WorkoutPhase.Resting, resume, snapshot) { advance() }
+                beginTimer(step.seconds, WorkoutPhase.Resting, resume, snapshot) {
+                    // Rest elapsed on its own — alert, then move to the next set.
+                    _events.tryEmit(WorkoutEvent.RestFinished(step.upNext))
+                    advance()
+                }
             }
         }
     }

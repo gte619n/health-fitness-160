@@ -10,6 +10,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.gte619n.healthfitness.data.workout.WorkoutEvent
 import com.gte619n.healthfitness.data.workout.WorkoutPhase
 import com.gte619n.healthfitness.data.workout.WorkoutSessionController
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,6 +45,27 @@ class WorkoutSessionService : LifecycleService() {
                     }
                     NotificationManagerCompat.from(this@WorkoutSessionService)
                         .notify(WorkoutNotification.NOTIFICATION_ID, WorkoutNotification.build(this@WorkoutSessionService, state))
+                }
+            }
+        }
+
+        // Pop a heads-up + vibrate when a rest period elapses on its own, so the
+        // user knows to start the next set without watching the screen.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                controller.events.collect { event ->
+                    when (event) {
+                        is WorkoutEvent.RestFinished -> {
+                            NotificationManagerCompat.from(this@WorkoutSessionService).notify(
+                                WorkoutNotification.ALERT_NOTIFICATION_ID,
+                                WorkoutNotification.buildRestFinished(
+                                    this@WorkoutSessionService,
+                                    event.upNext.exercise.name,
+                                    event.upNext.setOrdinal,
+                                ),
+                            )
+                        }
+                    }
                 }
             }
         }
