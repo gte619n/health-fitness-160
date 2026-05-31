@@ -15,6 +15,9 @@ import {
 } from '@/lib/gym-api';
 import { AdminEquipmentClient } from '@/components/admin/AdminEquipmentClient';
 import type { EquipmentSpecs, SpecSchema } from '@/lib/types/gym';
+import { pageMetadata } from '@/lib/page-metadata';
+
+export const metadata = pageMetadata('Equipment Review');
 
 export const dynamic = 'force-dynamic';
 

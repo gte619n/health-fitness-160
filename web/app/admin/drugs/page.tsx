@@ -12,6 +12,9 @@ import {
 } from '@/lib/drug-admin-api';
 import { AdminDrugClient } from '@/components/admin/AdminDrugClient';
 import type { DrugCategory, DrugForm } from '@/lib/types/medication';
+import { pageMetadata } from '@/lib/page-metadata';
+
+export const metadata = pageMetadata('Drug Admin');
 
 export const dynamic = 'force-dynamic';
 

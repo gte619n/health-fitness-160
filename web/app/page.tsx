@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
+import { absoluteTitle } from "@/lib/page-metadata";
+
+export const metadata = absoluteTitle("tesseta");
 import { auth } from "@/auth";
 import { BloodPanel, type BloodPanelData, type BloodPanelMarker } from "@/components/dashboard/BloodPanel";
 import { RecentFeed } from "@/components/dashboard/RecentFeed";

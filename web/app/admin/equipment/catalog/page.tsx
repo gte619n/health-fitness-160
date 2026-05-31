@@ -11,6 +11,9 @@ import {
 } from '@/lib/gym-api';
 import { AdminEquipmentCatalog } from '@/components/admin/AdminEquipmentCatalog';
 import type { EquipmentSpecs, SpecSchema } from '@/lib/types/gym';
+import { pageMetadata } from '@/lib/page-metadata';
+
+export const metadata = pageMetadata('Equipment Catalog');
 
 export const dynamic = 'force-dynamic';
 
