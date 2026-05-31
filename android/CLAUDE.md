@@ -25,3 +25,15 @@
   `statusBars`/`navigationBars`) to its root container, or use a `Scaffold`.
   Forgetting this puts top bars / back buttons *under* the status bar where taps
   don't register.
+- **Every pushed screen needs a back affordance.** Any destination reached by
+  `navController.navigate(...)` (including all the parity features behind the
+  phone "More" hub) must render a back control wired to `popBackStack()` — a
+  fixed header `Row` with `IconButton` + `Icons.AutoMirrored.Outlined.ArrowBack`
+  for plain screens (see `ProfileScreen`/`BodyCompositionScreen`), or a
+  `TopAppBar` `navigationIcon` for `Scaffold` screens (see `GymsListScreen`).
+  Don't rely on the system back gesture alone.
+- **Predictive back is enabled** (`android:enableOnBackInvokedCallback="true"` in
+  the manifest). Under gesture nav on API 35 this gives the back swipe its peek
+  animation; without it the gesture works only on full release and reads as
+  "back does nothing." Navigation-Compose handles the `OnBackInvokedCallback`
+  path — don't add custom `BackHandler`s that swallow it.
