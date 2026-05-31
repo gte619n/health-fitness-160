@@ -63,4 +63,19 @@ public class AdminDrugAdapter implements DrugCatalogPort {
     public String regenerateImageWithPrompt(String drugId, String promptOverride) {
         return service.regenerateImageWithPrompt(drugId, promptOverride);
     }
+
+    @Override
+    public String uploadImage(String drugId, byte[] bytes, String contentType) {
+        return service.uploadImage(drugId, bytes, contentType);
+    }
+
+    @Override
+    public Drug selectImage(String drugId, String imageUrl) {
+        return service.selectImage(drugId, imageUrl);
+    }
+
+    @Override
+    public Drug deleteImage(String drugId, String imageUrl) {
+        return service.deleteImage(drugId, imageUrl);
+    }
 }

@@ -5,6 +5,9 @@ import {
   deleteAdminDrug,
   getDrugImagePrompt,
   regenerateDrugImage,
+  uploadDrugImage,
+  selectDrugImage,
+  deleteDrugImageCandidate,
   mergeAdminDrugs,
 } from '@/lib/drug-admin-api';
 import { AdminDrugClient } from '@/components/admin/AdminDrugClient';
@@ -37,6 +40,24 @@ export default async function AdminDrugsPage() {
     revalidatePath('/admin/drugs');
   }
 
+  async function uploadImageAction(drugId: string, file: File) {
+    'use server';
+    await uploadDrugImage(drugId, file);
+    revalidatePath('/admin/drugs');
+  }
+
+  async function selectImageAction(drugId: string, imageUrl: string) {
+    'use server';
+    await selectDrugImage(drugId, imageUrl);
+    revalidatePath('/admin/drugs');
+  }
+
+  async function deleteImageAction(drugId: string, imageUrl: string) {
+    'use server';
+    await deleteDrugImageCandidate(drugId, imageUrl);
+    revalidatePath('/admin/drugs');
+  }
+
   async function getImagePromptAction(drugId: string) {
     'use server';
     return getDrugImagePrompt(drugId);
@@ -65,6 +86,9 @@ export default async function AdminDrugsPage() {
         drugs={drugs}
         update={updateAction}
         regenerate={regenerateAction}
+        uploadImage={uploadImageAction}
+        selectImage={selectImageAction}
+        deleteImage={deleteImageAction}
         getImagePrompt={getImagePromptAction}
         merge={mergeAction}
         remove={deleteAction}

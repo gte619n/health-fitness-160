@@ -3,8 +3,11 @@ import {
   getAdminCatalog,
   updateEquipment,
   regenerateEquipmentImage,
+  uploadEquipmentImage,
   getEquipmentImagePrompt,
   getEquipment,
+  selectEquipmentImage,
+  deleteEquipmentImageCandidate,
 } from '@/lib/gym-api';
 import { AdminEquipmentCatalog } from '@/components/admin/AdminEquipmentCatalog';
 import type { EquipmentSpecs, SpecSchema } from '@/lib/types/gym';
@@ -30,6 +33,12 @@ export default async function AdminEquipmentCatalogPage() {
     revalidatePath('/admin/equipment/catalog');
   }
 
+  async function uploadImageAction(equipmentId: string, file: File) {
+    'use server';
+    await uploadEquipmentImage(equipmentId, file);
+    revalidatePath('/admin/equipment/catalog');
+  }
+
   async function getImageStatusAction(equipmentId: string): Promise<string | null> {
     'use server';
     const eq = await getEquipment(equipmentId);
@@ -42,6 +51,18 @@ export default async function AdminEquipmentCatalogPage() {
   async function getImagePromptAction(equipmentId: string) {
     'use server';
     return getEquipmentImagePrompt(equipmentId);
+  }
+
+  async function selectImageAction(equipmentId: string, imageUrl: string) {
+    'use server';
+    await selectEquipmentImage(equipmentId, imageUrl);
+    revalidatePath('/admin/equipment/catalog');
+  }
+
+  async function deleteImageAction(equipmentId: string, imageUrl: string) {
+    'use server';
+    await deleteEquipmentImageCandidate(equipmentId, imageUrl);
+    revalidatePath('/admin/equipment/catalog');
   }
 
   return (
@@ -57,8 +78,11 @@ export default async function AdminEquipmentCatalogPage() {
         catalog={catalog}
         update={updateAction}
         regenerate={regenerateAction}
+        uploadImage={uploadImageAction}
         getImageStatus={getImageStatusAction}
         getImagePrompt={getImagePromptAction}
+        selectImage={selectImageAction}
+        deleteImage={deleteImageAction}
       />
     </div>
   );
