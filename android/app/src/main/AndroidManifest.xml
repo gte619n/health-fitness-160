@@ -44,6 +44,18 @@
             </intent-filter>
         </service>
 
+        <!-- IMPL-AND-04 / IMPL-AND-05: share downloaded lab/DEXA PDFs with the
+             system viewer via ACTION_VIEW over a content:// URI. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Foreground service for active workout sessions. Wired up in IMPL-XX.
         <service
             android:name=".workouts.WorkoutSessionService"

@@ -7,23 +7,42 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.gte619n.healthfitness.feature.blood.nav.BloodRoutes
+import com.gte619n.healthfitness.feature.blood.nav.bloodGraph
+import com.gte619n.healthfitness.feature.bodycomposition.nav.BodyCompositionRoutes
+import com.gte619n.healthfitness.feature.bodycomposition.nav.bodyCompositionGraph
 import com.gte619n.healthfitness.feature.goals.GOAL_ID_ARG
 import com.gte619n.healthfitness.feature.goals.GoalRoadmapRoute
 import com.gte619n.healthfitness.feature.goals.GoalsChatRoute
 import com.gte619n.healthfitness.feature.goals.GoalsListRoute
+import com.gte619n.healthfitness.feature.medical.nav.MedicationRoutes
+import com.gte619n.healthfitness.feature.medical.nav.medicationsGraph
 import com.gte619n.healthfitness.feature.nutrition.NutritionCaptureRoute
 import com.gte619n.healthfitness.feature.nutrition.NutritionTargetRoute
 import com.gte619n.healthfitness.feature.nutrition.NutritionTodayRoute
+import com.gte619n.healthfitness.feature.settings.nav.SettingsRoutes
+import com.gte619n.healthfitness.feature.settings.nav.settingsGraph
+import com.gte619n.healthfitness.feature.workouts.nav.WorkoutsRoutes
+import com.gte619n.healthfitness.feature.workouts.nav.workoutsGraph
 import com.gte619n.healthfitness.mobile.DashboardRoot
 
-// Minimal app NavHost (IMPL-12 assumption 15). The existing dashboard screens
-// remain the start destination as static composables; Goals adds two routes.
+// App NavHost. The dashboard is the start destination; every parity feature
+// (IMPL-AND-02..06, -12) registers its own nested graph here. Destinations are
+// reached via the dashboard's `onNavigate(route)` callback (sidebar / bottom
+// nav) — the route constants are re-exported below for convenience.
 object Routes {
     const val DASHBOARD = "dashboard"
     const val GOALS_LIST = "goals"
     const val GOALS_CHAT = "goals/chat"
     const val GOAL_DETAIL = "goals/{$GOAL_ID_ARG}"
     fun goalDetail(goalId: String) = "goals/$goalId"
+
+    // Feature entry routes (re-exported so dashboard nav items can target them).
+    const val MEDICATIONS = MedicationRoutes.LIST
+    const val BLOOD = BloodRoutes.OVERVIEW
+    const val BODY = BodyCompositionRoutes.BODY
+    const val WORKOUTS = WorkoutsRoutes.GYMS
+    const val SETTINGS = SettingsRoutes.SETTINGS
 
     const val NUTRITION = "nutrition"
     const val NUTRITION_TARGET = "nutrition/target"
@@ -38,7 +57,7 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
             DashboardRoot(
                 widthClass = widthClass,
                 onOpenGoals = { navController.navigate(Routes.GOALS_LIST) },
-                onOpenNutrition = { navController.navigate(Routes.NUTRITION) },
+                onNavigate = { route -> navController.navigate(route) },
             )
         }
         composable(Routes.GOALS_LIST) {
@@ -48,13 +67,10 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
                 onBack = { navController.popBackStack() },
             )
         }
-        // Registered BEFORE the parameterized goals/{goalId} route so the
-        // static "goals/chat" path matches the chat screen, not the detail.
         composable(Routes.GOALS_CHAT) {
             GoalsChatRoute(
                 onBack = { navController.popBackStack() },
                 onOpenGoal = { goalId ->
-                    // Replace the chat in the back stack with the new roadmap.
                     navController.navigate(Routes.goalDetail(goalId)) {
                         popUpTo(Routes.GOALS_CHAT) { inclusive = true }
                     }
@@ -67,6 +83,16 @@ fun AppNavHost(widthClass: WindowWidthSizeClass) {
         ) {
             GoalRoadmapRoute(onBack = { navController.popBackStack() })
         }
+
+        // Parity feature graphs (IMPL-AND-02..06).
+        medicationsGraph(navController)
+        bloodGraph(navController)
+        bodyCompositionGraph(navController)
+        workoutsGraph(navController)
+        settingsGraph(
+            navController = navController,
+            onSignedOut = { navController.popBackStack(Routes.DASHBOARD, inclusive = false) },
+        )
 
         // IMPL-13 nutrition. Static "nutrition/target" + "nutrition/capture"
         // routes; nutrition has no parameterized path so ordering is moot.

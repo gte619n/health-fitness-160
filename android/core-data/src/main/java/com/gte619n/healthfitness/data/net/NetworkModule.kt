@@ -1,5 +1,6 @@
 package com.gte619n.healthfitness.data.net
 
+import com.gte619n.healthfitness.data.auth.GoogleAuthRepository
 import com.gte619n.healthfitness.data.auth.IdTokenCache
 import com.gte619n.healthfitness.data.goals.ChatApi
 import com.gte619n.healthfitness.data.goals.GoalsApi
@@ -39,6 +40,10 @@ object NetworkModule {
     @Singleton
     fun provideMoshi(): Moshi =
         Moshi.Builder()
+            // java.time adapters must precede the reflective Kotlin factory.
+            .add(LocalDateAdapter())
+            .add(InstantAdapter())
+            .add(DayOfWeekMoshiAdapter())
             .add(KotlinJsonAdapterFactory())
             .build()
 
@@ -55,6 +60,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideTokenAuthenticator(
+        repo: GoogleAuthRepository,
+        cache: IdTokenCache,
+    ): TokenAuthenticator = TokenAuthenticator(repo, cache)
+
+    @Provides
+    @Singleton
     @Named("logging")
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
@@ -63,11 +75,13 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         auth: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
         @Named("logging") logging: HttpLoggingInterceptor,
     ): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(auth)
             .addInterceptor(logging)
+            .authenticator(tokenAuthenticator)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()

@@ -27,4 +27,7 @@ include(
     ":feature-chat",
     ":feature-goals",
     ":feature-nutrition",
+    ":feature-settings",
+    ":feature-blood",
+    ":feature-body-composition",
 )

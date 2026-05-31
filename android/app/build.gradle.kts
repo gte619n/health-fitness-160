@@ -105,6 +105,9 @@ dependencies {
     implementation(project(":feature-chat"))
     implementation(project(":feature-goals"))
     implementation(project(":feature-nutrition"))
+    implementation(project(":feature-settings"))
+    implementation(project(":feature-blood"))
+    implementation(project(":feature-body-composition"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

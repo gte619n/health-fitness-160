@@ -31,12 +31,19 @@ enum class HfTone { Good, Warn, Alert, Neutral }
 @Composable
 fun HfCard(
     modifier: Modifier = Modifier,
+    // Transparent cards (no surface fill, border only) are the rule for
+    // settings/profile/form screens — they sit on the canvas, not a white
+    // surface. The filled variant is for data/dashboard cards. See android/CLAUDE.md.
+    transparent: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
             .border(0.5.dp, Hf.colors.borderDefault, RoundedCornerShape(10.dp))
-            .background(Hf.colors.surface, RoundedCornerShape(10.dp)),
+            .then(
+                if (transparent) Modifier
+                else Modifier.background(Hf.colors.surface, RoundedCornerShape(10.dp)),
+            ),
     ) {
         content()
     }
