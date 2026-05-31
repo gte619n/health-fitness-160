@@ -31,7 +31,12 @@ public class NutritionService {
         MetricKey.NUTRITION_PROTEIN_AVG_7D,
         MetricKey.NUTRITION_CARBS_AVG_7D,
         MetricKey.NUTRITION_FAT_AVG_7D,
-        MetricKey.NUTRITION_CALORIES_AVG_7D
+        MetricKey.NUTRITION_CALORIES_AVG_7D,
+        MetricKey.NUTRITION_FIBER_AVG_7D,
+        MetricKey.NUTRITION_SUGAR_AVG_7D,
+        // The day's totals also move "days target met", so bound COUNT Steps
+        // re-evaluate after every rollup save.
+        MetricKey.NUTRITION_TARGET_MET_DAYS
     );
 
     private final NutritionDailyLogRepository repository;

@@ -55,19 +55,23 @@ class NutritionServiceTest {
     }
 
     @Test
-    void logDay_publishesAllFourNutritionMetrics() {
+    void logDay_publishesAllNutritionMetrics() {
         InMemNutrition repo = new InMemNutrition();
         List<MetricChangedEvent> events = new ArrayList<>();
         NutritionService svc = new NutritionService(repo, new InMemEntries(), capturingPublisher(events));
 
         svc.logDay(USER, LocalDate.of(2026, 5, 20), 150.0, 200.0, 60.0, 25.0, 40.0, 2000.0);
 
-        assertEquals(4, events.size());
+        // The day's totals move every avg key plus targetMetDays.
+        assertEquals(7, events.size());
         List<String> keys = events.stream().map(MetricChangedEvent::metricKey).toList();
         assertTrue(keys.contains(MetricKey.NUTRITION_PROTEIN_AVG_7D.key()));
         assertTrue(keys.contains(MetricKey.NUTRITION_CARBS_AVG_7D.key()));
         assertTrue(keys.contains(MetricKey.NUTRITION_FAT_AVG_7D.key()));
         assertTrue(keys.contains(MetricKey.NUTRITION_CALORIES_AVG_7D.key()));
+        assertTrue(keys.contains(MetricKey.NUTRITION_FIBER_AVG_7D.key()));
+        assertTrue(keys.contains(MetricKey.NUTRITION_SUGAR_AVG_7D.key()));
+        assertTrue(keys.contains(MetricKey.NUTRITION_TARGET_MET_DAYS.key()));
         assertTrue(events.stream().allMatch(e -> e.userId().equals(USER)));
     }
 
