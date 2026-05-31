@@ -26,15 +26,18 @@ public class FoodCatalogService {
     private final FoodCatalogRepository repository;
     private final int verifyThreshold;
     private final ObjectProvider<BarcodeLookup> barcodeLookup;
+    private final ObjectProvider<FoodImageService> foodImages;
 
     public FoodCatalogService(
         FoodCatalogRepository repository,
         @Value("${app.nutrition.verify-threshold:1}") int verifyThreshold,
-        ObjectProvider<BarcodeLookup> barcodeLookup
+        ObjectProvider<BarcodeLookup> barcodeLookup,
+        ObjectProvider<FoodImageService> foodImages
     ) {
         this.repository = repository;
         this.verifyThreshold = verifyThreshold;
         this.barcodeLookup = barcodeLookup;
+        this.foodImages = foodImages;
     }
 
     public List<CatalogFood> search(String q) {
@@ -122,6 +125,29 @@ public class FoodCatalogService {
         int defaultServingIndex,
         FoodSource source
     ) {
+        return create(createdByUserId, name, brand, barcode, category,
+            macrosPer100g, servingSizes, defaultServingIndex, source, null);
+    }
+
+    /**
+     * Create a catalog food and enqueue async studio-image generation (IMPL-13
+     * M4). When {@code referencePhotoRef} is present (the user's meal-capture
+     * photo) it is fed to the generator as a visual reference; otherwise the
+     * image is generated from the food name/category. Generation is fire-and-
+     * forget — the returned food still reports its in-flight image status.
+     */
+    public CatalogFood create(
+        String createdByUserId,
+        String name,
+        String brand,
+        String barcode,
+        String category,
+        Macros macrosPer100g,
+        List<ServingSize> servingSizes,
+        int defaultServingIndex,
+        FoodSource source,
+        String referencePhotoRef
+    ) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("name is required");
         }
@@ -147,6 +173,25 @@ public class FoodCatalogService {
             null
         );
         repository.save(food);
+        FoodImageService images = foodImages.getIfAvailable();
+        if (images != null) {
+            images.enqueueGeneration(food.foodId(), referencePhotoRef);
+        }
+        return food;
+    }
+
+    /**
+     * Force (re)generation of a food's studio image, asynchronously (IMPL-13 M4
+     * regenerate endpoint). Looks the food up so callers get a 404 for unknown
+     * ids, then enqueues — a no-op when the image pipeline is unavailable.
+     */
+    public CatalogFood regenerateImage(String foodId) {
+        CatalogFood food = get(foodId);
+        FoodImageService images = foodImages.getIfAvailable();
+        if (images != null) {
+            images.enqueueGeneration(foodId, null);
+            return get(foodId);
+        }
         return food;
     }
 

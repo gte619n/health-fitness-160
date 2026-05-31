@@ -82,6 +82,15 @@ app:
     bucket: ${NUTRITION_BUCKET:health-fitness-160-nutrition-photos}
     capture:
       enabled: ${NUTRITION_CAPTURE_ENABLED:true}
+    # IMPL-13 Milestone 4: AI studio images — generated once per unique catalog
+    # food, asynchronously, reused forever. `images.enabled` gates the GCS
+    # (FoodImageStorage) + Gemini (GeminiFoodImageGenerator) beans so unit tests
+    # load the context without an API key / GCS auth — same pattern as capture.
+    # The studio image uses the project's image model (root CLAUDE.md). Reuses
+    # the nutrition bucket above under a food-images/ prefix (no new bucket).
+    images:
+      enabled: ${NUTRITION_IMAGES_ENABLED:true}
+      model: ${NUTRITION_IMAGE_MODEL:gemini-3.1-flash-image-preview}
     # Extraction runs on the SHARED gemini-3.5-flash model (NOT the Goals Pro
     # model). Direct Gemini API, same key/model env vars as dexa/bloodtest.
     gemini-api-key: ${GEMINI_API_KEY:}

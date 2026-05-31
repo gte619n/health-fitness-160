@@ -74,6 +74,15 @@ public class FirestoreFoodCatalogRepository implements FoodCatalogRepository {
     }
 
     @Override
+    public List<CatalogFood> findByImageStatus(FoodImageStatus status, int limit) {
+        List<QueryDocumentSnapshot> docs = await(collection()
+            .whereEqualTo("imageStatus", status.name())
+            .limit(limit)
+            .get()).getDocuments();
+        return docs.stream().map(FirestoreFoodCatalogRepository::toFood).toList();
+    }
+
+    @Override
     public void save(CatalogFood food) {
         DocumentReference docRef = collection().document(food.foodId());
         DocumentSnapshot existing = await(docRef.get());

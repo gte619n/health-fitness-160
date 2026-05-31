@@ -76,7 +76,8 @@ public class FoodController {
             body.macrosPer100g() != null ? body.macrosPer100g().toMacros() : null,
             servings,
             defaultIndex,
-            FoodSource.USER
+            FoodSource.USER,
+            body.referencePhotoRef()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(FoodResponse.from(food));
     }
@@ -88,6 +89,22 @@ public class FoodController {
         return FoodResponse.from(food);
     }
 
+    /**
+     * Force (re)generation of a food's studio image. Generation runs async, so
+     * this returns 202 Accepted with the food's current state (image status
+     * will be {@code PENDING} when the image pipeline is live). A missing food
+     * surfaces as {@link java.util.NoSuchElementException} → 404.
+     */
+    @PostMapping("/{foodId}/image/regenerate")
+    public ResponseEntity<FoodResponse> regenerateImage(@PathVariable String foodId) {
+        try {
+            CatalogFood food = catalog.regenerateImage(foodId);
+            return ResponseEntity.accepted().body(FoodResponse.from(food));
+        } catch (java.util.NoSuchElementException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
     public record CreateFoodRequest(
         String name,
         String brand,
@@ -95,6 +112,12 @@ public class FoodController {
         String category,
         MacrosDto macrosPer100g,
         List<ServingSizeDto> servingSizes,
-        Integer defaultServingIndex
+        Integer defaultServingIndex,
+        /**
+         * Optional reference to the user's meal-capture photo (the {@code photoRef}
+         * from a capture proposal). When present, the studio image is generated
+         * using that photo as a visual reference; otherwise from the name.
+         */
+        String referencePhotoRef
     ) {}
 }

@@ -135,6 +135,8 @@ public class TestPersistenceConfig {
             @Override public Optional<CatalogFood> findById(String foodId) { return Optional.empty(); }
             @Override public List<CatalogFood> searchByNamePrefix(String prefixLower, int limit) { return List.of(); }
             @Override public Optional<CatalogFood> findByBarcode(String code) { return Optional.empty(); }
+            @Override public List<CatalogFood> findByImageStatus(
+                com.gte619n.healthfitness.core.nutrition.FoodImageStatus status, int limit) { return List.of(); }
             @Override public void save(CatalogFood food) {}
             @Override public void saveConfirmation(String foodId, String userId) {}
             @Override public int countConfirmations(String foodId) { return 0; }

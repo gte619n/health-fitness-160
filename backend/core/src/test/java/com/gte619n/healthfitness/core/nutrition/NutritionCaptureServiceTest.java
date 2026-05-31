@@ -30,7 +30,7 @@ class NutritionCaptureServiceTest {
         FakeCatalogRepo repo = new FakeCatalogRepo();
         CatalogFood chicken = food("f-chicken", "Chicken breast, grilled");
         repo.add(chicken);
-        FoodCatalogService catalog = new FoodCatalogService(repo, 1, empty());
+        FoodCatalogService catalog = new FoodCatalogService(repo, 1, empty(), empty());
 
         MealPhotoAnalyzer analyzer = (bytes, mime) -> List.of(
             new MealPhotoAnalyzer.MealItem(
@@ -61,7 +61,7 @@ class NutritionCaptureServiceTest {
 
     @Test
     void analyzeLabel_buildsGeminiLabelDraft_normalizedAndBarcoded() {
-        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty());
+        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty(), empty());
         // Analyzer is responsible for per-100g normalization; here it returns
         // already-normalized macros as the contract specifies.
         NutritionLabelAnalyzer analyzer = (bytes, mime) -> new NutritionLabelAnalyzer.LabelExtraction(
@@ -90,7 +90,7 @@ class NutritionCaptureServiceTest {
 
     @Test
     void analyzeLabel_withoutBarcode_leavesBarcodeNull() {
-        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty());
+        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty(), empty());
         NutritionLabelAnalyzer analyzer = (bytes, mime) -> new NutritionLabelAnalyzer.LabelExtraction(
             "Soup", null, null, null, new Macros(50.0, 2.0, 7.0, 1.0, 1.0, 2.0));
         NutritionCaptureService svc = new NutritionCaptureService(
@@ -106,7 +106,7 @@ class NutritionCaptureServiceTest {
 
     @Test
     void analyzeMeal_withoutAnalyzer_throwsIllegalState() {
-        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty());
+        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty(), empty());
         NutritionCaptureService svc = new NutritionCaptureService(
             empty(), empty(), empty(), catalog);
         assertThrows(IllegalStateException.class,
@@ -115,7 +115,7 @@ class NutritionCaptureServiceTest {
 
     @Test
     void analyzeMeal_withEmptyPhoto_throwsIllegalArgument() {
-        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty());
+        FoodCatalogService catalog = new FoodCatalogService(new FakeCatalogRepo(), 1, empty(), empty());
         NutritionCaptureService svc = new NutritionCaptureService(
             provider((b, m) -> List.of()), empty(), empty(), catalog);
         assertThrows(IllegalArgumentException.class,
@@ -186,6 +186,9 @@ class NutritionCaptureServiceTest {
                 .toList();
         }
         @Override public Optional<CatalogFood> findByBarcode(String code) { return Optional.empty(); }
+        @Override public List<CatalogFood> findByImageStatus(FoodImageStatus status, int limit) {
+            return foods.stream().filter(f -> f.imageStatus() == status).limit(limit).toList();
+        }
         @Override public void save(CatalogFood food) { foods.add(food); }
         @Override public void saveConfirmation(String foodId, String userId) {}
         @Override public int countConfirmations(String foodId) { return 0; }
