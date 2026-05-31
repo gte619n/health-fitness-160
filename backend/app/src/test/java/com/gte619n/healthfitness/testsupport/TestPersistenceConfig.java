@@ -29,6 +29,10 @@ import com.gte619n.healthfitness.core.medication.MedicationStatus;
 import com.gte619n.healthfitness.core.medication.Protocol;
 import com.gte619n.healthfitness.core.medication.ProtocolRepository;
 import com.gte619n.healthfitness.core.user.UserRepository;
+import com.gte619n.healthfitness.core.exercise.ExerciseRepository;
+import com.gte619n.healthfitness.core.workout.WorkoutSessionRepository;
+import com.gte619n.healthfitness.testsupport.workout.InMemoryExerciseRepository;
+import com.gte619n.healthfitness.testsupport.workout.InMemoryWorkoutSessionRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -116,6 +120,16 @@ public class TestPersistenceConfig {
     @Bean
     WeeklyWorkoutAggregateRepository weeklyWorkoutAggregateRepository() {
         return new InMemoryWeeklyWorkoutAggregateRepository();
+    }
+
+    @Bean
+    WorkoutSessionRepository workoutSessionRepository() {
+        return new InMemoryWorkoutSessionRepository();
+    }
+
+    @Bean
+    ExerciseRepository exerciseRepository() {
+        return new InMemoryExerciseRepository();
     }
 
     // ---- empty no-op stubs to satisfy app context wiring ----
