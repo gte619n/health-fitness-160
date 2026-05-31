@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AdminEquipment, SpecSchema, EquipmentSpecs } from '@/lib/types/gym';
+import { useToast } from '@/components/ui/Toast';
 import { EditEquipmentModal } from './EditEquipmentModal';
 import { RegenerateImageModal } from './RegenerateImageModal';
 import { ImageLightbox } from './ImageLightbox';
+import { ImageCandidateStrip } from './ImageCandidateStrip';
 
 interface Props {
   catalog: AdminEquipment[];
@@ -14,18 +16,50 @@ interface Props {
     data: { name: string; category: string; subcategory: string; specSchema: SpecSchema; specs: EquipmentSpecs },
   ) => Promise<void>;
   regenerate: (equipmentId: string, prompt: string) => Promise<void>;
+  uploadImage: (equipmentId: string, file: File) => Promise<void>;
   getImageStatus: (equipmentId: string) => Promise<string | null>;
   getImagePrompt: (equipmentId: string) => Promise<string>;
+  selectImage: (equipmentId: string, imageUrl: string) => Promise<void>;
+  deleteImage: (equipmentId: string, imageUrl: string) => Promise<void>;
 }
 
 export function AdminEquipmentCatalog({
   catalog,
   update,
   regenerate,
+  uploadImage,
   getImageStatus,
   getImagePrompt,
+  selectImage,
+  deleteImage,
 }: Props) {
   const router = useRouter();
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
+
+  function pickFileFor(equipmentId: string) {
+    setUploadTargetId(equipmentId);
+    fileInputRef.current?.click();
+  }
+
+  async function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const id = uploadTargetId;
+    // Reset so re-selecting the same file fires onChange again.
+    e.target.value = '';
+    setUploadTargetId(null);
+    if (!file || !id) return;
+    try {
+      await uploadImage(id, file);
+      toast.success('Image uploaded');
+      router.refresh();
+    } catch (err) {
+      toast.error('Upload failed', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  }
   const [query, setQuery] = useState('');
   const [editingEquipment, setEditingEquipment] = useState<AdminEquipment | null>(null);
   const [regeneratingEquipment, setRegeneratingEquipment] = useState<AdminEquipment | null>(null);
@@ -111,7 +145,22 @@ export function AdminEquipmentCatalog({
                       {eq.category} · {eq.subcategory}
                     </p>
                   </div>
-                  <div className="mt-auto flex justify-end">
+                  <ImageCandidateStrip
+                    id={eq.equipmentId}
+                    name={eq.name}
+                    activeUrl={eq.imageUrl}
+                    candidates={eq.imageCandidates ?? []}
+                    selectImage={async (id, url) => { await selectImage(id, url); router.refresh(); }}
+                    deleteImage={async (id, url) => { await deleteImage(id, url); router.refresh(); }}
+                  />
+                  <div className="mt-auto flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => pickFileFor(eq.equipmentId)}
+                      className="cursor-pointer rounded-md border border-border-default bg-canvas px-3 py-1.5 text-xs font-medium text-primary hover:bg-surface"
+                    >
+                      Upload photo
+                    </button>
                     <button
                       type="button"
                       onClick={() => setEditingEquipment(eq)}
@@ -182,6 +231,14 @@ export function AdminEquipmentCatalog({
         src={lightboxSrc}
         alt={lightboxAlt}
         onClose={() => setLightboxSrc(null)}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUploadFile}
       />
     </div>
   );

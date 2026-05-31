@@ -55,6 +55,7 @@ class AdminEquipmentControllerTest {
             SpecSchema.BODYWEIGHT,
             Map.of("weight", "50"),
             null,
+            java.util.List.of(),
             ImageStatus.PENDING,
             "user123",
             EquipmentStatus.PENDING_REVIEW,

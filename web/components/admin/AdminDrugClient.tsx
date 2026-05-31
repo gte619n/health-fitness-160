@@ -58,6 +58,9 @@ interface Props {
     data: { name: string; aliases: string[]; category: DrugCategory; form: DrugForm; defaultUnit: string },
   ) => Promise<void>;
   regenerate: (drugId: string, prompt: string) => Promise<void>;
+  uploadImage: (drugId: string, file: File) => Promise<void>;
+  selectImage: (drugId: string, imageUrl: string) => Promise<void>;
+  deleteImage: (drugId: string, imageUrl: string) => Promise<void>;
   getImagePrompt: (drugId: string) => Promise<string>;
   merge: (sourceId: string, targetId: string) => Promise<void>;
   remove: (drugId: string) => Promise<void>;
@@ -67,6 +70,9 @@ export function AdminDrugClient({
   drugs,
   update,
   regenerate,
+  uploadImage,
+  selectImage,
+  deleteImage,
   getImagePrompt,
   merge,
   remove,
@@ -177,6 +183,18 @@ export function AdminDrugClient({
               }}
               regenerate={async (id, prompt) => {
                 await regenerate(id, prompt);
+                router.refresh();
+              }}
+              uploadImage={async (id, file) => {
+                await uploadImage(id, file);
+                router.refresh();
+              }}
+              selectImage={async (id, imageUrl) => {
+                await selectImage(id, imageUrl);
+                router.refresh();
+              }}
+              deleteImage={async (id, imageUrl) => {
+                await deleteImage(id, imageUrl);
                 router.refresh();
               }}
               getImagePrompt={getImagePrompt}

@@ -59,6 +59,38 @@ export async function regenerateDrugImage(
   return res.json();
 }
 
+export async function uploadDrugImage(drugId: string, file: File): Promise<Drug> {
+  const formData = new FormData();
+  formData.append('file', file);
+  // No Content-Type header — let fetch set the multipart boundary.
+  const res = await apiFetch(`/api/admin/drugs/${drugId}/upload-image`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Upload drug image failed: ${res.status}`);
+  return res.json();
+}
+
+export async function selectDrugImage(drugId: string, imageUrl: string): Promise<Drug> {
+  const res = await apiFetch(`/api/admin/drugs/${drugId}/select-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl }),
+  });
+  if (!res.ok) throw new Error(`Select drug image failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteDrugImageCandidate(drugId: string, imageUrl: string): Promise<Drug> {
+  const res = await apiFetch(`/api/admin/drugs/${drugId}/delete-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl }),
+  });
+  if (!res.ok) throw new Error(`Delete drug image failed: ${res.status}`);
+  return res.json();
+}
+
 export async function mergeAdminDrugs(sourceId: string, targetId: string): Promise<Drug> {
   const res = await apiFetch(`/api/admin/drugs/${sourceId}/merge-into/${targetId}`, {
     method: 'POST',

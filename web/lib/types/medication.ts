@@ -18,6 +18,7 @@ export interface Drug {
   defaultUnit: string;
   commonDoses: string[];
   imageUrl: string | null;
+  imageCandidates: string[];
   imageFallback: string;
   suggestedMarkers: string[];
   description: string | null;

@@ -161,6 +161,40 @@ export async function regenerateEquipmentImage(
   if (!res.ok) throw new Error(`Regenerate image failed: ${res.status}`);
 }
 
+export async function uploadEquipmentImage(equipmentId: string, file: File): Promise<Equipment> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await apiFetch(`/api/admin/equipment/${equipmentId}/upload-image`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Upload image failed: ${res.status}`);
+  return res.json();
+}
+
+export async function selectEquipmentImage(equipmentId: string, imageUrl: string): Promise<Equipment> {
+  const res = await apiFetch(`/api/admin/equipment/${equipmentId}/select-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl }),
+  });
+  if (!res.ok) throw new Error(`Select image failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteEquipmentImageCandidate(
+  equipmentId: string,
+  imageUrl: string,
+): Promise<Equipment> {
+  const res = await apiFetch(`/api/admin/equipment/${equipmentId}/delete-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl }),
+  });
+  if (!res.ok) throw new Error(`Delete image failed: ${res.status}`);
+  return res.json();
+}
+
 export async function mergeEquipment(sourceId: string, targetId: string): Promise<Equipment> {
   const res = await apiFetch(`/api/admin/equipment/${sourceId}/merge-into/${targetId}`, {
     method: 'POST',
