@@ -8,10 +8,13 @@ import { Sidebar, type SidebarUser } from "@/components/dashboard/Sidebar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TodaysDosesCard } from "@/components/dashboard/TodaysDosesCard";
 import { WeightChart } from "@/components/dashboard/WeightChart";
+import { WorkoutResultsCard } from "@/components/dashboard/WorkoutResultsCard";
 import { isAdmin } from "@/lib/admin";
 import { apiFetch, apiJson } from "@/lib/api";
 import { recent, todayHeader, vitals } from "@/lib/fixtures/dashboard";
 import type { TodaysDose, TimeWindow } from "@/lib/types/medication";
+import { getLatestCompletedWorkout } from "@/lib/workout-api";
+import type { CompletedWorkout } from "@/lib/types/workout";
 
 // IMPL-04 wires the Sidebar identity and the BodyCompositionCard to real
 // data. The other cards (StatCard row, BloodPanel, TodayCard, RecentFeed)
@@ -49,11 +52,12 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await auth();
   const sidebarUser = toSidebarUser(session);
-  const [admin, view, bloodPanel, todaysDoses] = await Promise.all([
+  const [admin, view, bloodPanel, todaysDoses, latestWorkout] = await Promise.all([
     isAdmin(),
     loadBodyComposition(),
     loadBloodPanel(),
     loadTodaysDoses(),
+    loadLatestWorkout(),
   ]);
 
   async function logDose(medicationId: string, window: TimeWindow) {
@@ -88,6 +92,8 @@ export default async function DashboardPage() {
             <BloodPanel data={bloodPanel} compact />
             <TodaysDosesCard doses={todaysDoses} logDose={logDose} compact />
           </section>
+
+          <WorkoutResultsCard workout={latestWorkout} />
 
           <RecentFeed entries={recent} variant="desktop" />
         </main>
@@ -707,5 +713,14 @@ async function loadTodaysDoses(): Promise<TodaysDose[]> {
     return await apiJson<TodaysDose[]>("/api/me/medications/today");
   } catch {
     return [];
+  }
+}
+
+// Most recently completed workout for the results card.
+async function loadLatestWorkout(): Promise<CompletedWorkout | null> {
+  try {
+    return await getLatestCompletedWorkout();
+  } catch {
+    return null;
   }
 }
