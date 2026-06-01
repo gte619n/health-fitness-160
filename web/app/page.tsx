@@ -11,6 +11,9 @@ import { Sidebar, type SidebarUser } from "@/components/dashboard/Sidebar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TodaysDosesCard } from "@/components/dashboard/TodaysDosesCard";
 import { WeightChart } from "@/components/dashboard/WeightChart";
+import { WeightStatCard, type WeightStat } from "@/components/dashboard/WeightStatCard";
+import { WeightValue } from "@/components/dashboard/WeightValue";
+import { BodyCompositionPrimaryDelta } from "@/components/dashboard/BodyCompositionPrimaryDelta";
 import { isAdmin } from "@/lib/admin";
 import { apiFetch, apiJson } from "@/lib/api";
 import { recent, todayHeader, vitals } from "@/lib/fixtures/dashboard";
@@ -35,16 +38,22 @@ type Reading = {
   recordingMethod: string | null;
 };
 
-import type { Vital } from "@/lib/fixtures/dashboard";
-
 type BodyCompositionView = {
-  primary: { value: string; unit: string; delta: string | null };
-  secondary: { value: string; unit: string; delta: string | null }[];
+  // Latest weight in canonical lb; formatted client-side per unit pref.
+  primaryWeightLb: number;
+  // Signed change vs the 90d average, in lb (negative = down).
+  primaryDeltaLb: number | null;
+  // Body fat % (already unit-agnostic).
+  bodyFatPercent: number | null;
+  // Lean mass in canonical lb; formatted client-side per unit pref.
+  leanMassLb: number | null;
+  // Weight series in lb, oldest → newest.
   series: number[];
   yMin: number;
   yMax: number;
   xLabels: { x: number; label: string }[];
-  weightVital: Vital | null;
+  // Raw lb data for the top-row Weight StatCard (formatted client-side).
+  weightStat: WeightStat | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -80,7 +89,12 @@ export default async function DashboardPage() {
           <TopBar />
 
           <section className="mb-3 grid grid-cols-4 gap-2.5">
-            {composeStatRow(view?.weightVital ?? null).map((v) => (
+            {view?.weightStat ? (
+              <WeightStatCard stat={view.weightStat} />
+            ) : (
+              vitals[0] && <StatCard stat={vitals[0]} />
+            )}
+            {vitals.slice(1).map((v) => (
               <StatCard key={v.label} stat={v} />
             ))}
           </section>
@@ -140,7 +154,6 @@ async function loadBodyComposition(): Promise<BodyCompositionView | null> {
   const latestWeight = series[series.length - 1] ?? 0;
   const avg90 = series.reduce((a, b) => a + b, 0) / series.length;
   const delta = latestWeight - avg90;
-  const deltaStr = formatDelta(delta, "lb", "vs 90d avg");
 
   const latestBodyFat = readings
     .filter((r) => r.metric === "BODY_FAT_PERCENT")
@@ -165,16 +178,15 @@ async function loadBodyComposition(): Promise<BodyCompositionView | null> {
   const sevenDayDelta = reference
     ? latestWeight - reference.value * KG_TO_LB
     : null;
-  const weightVital: Vital = {
+  const weightStat: WeightStat = {
     label: "Weight",
     icon: "scale",
-    value: latestWeight.toFixed(1),
-    unit: "lb",
+    valueLb: latestWeight,
+    sparkline: weightSparkline(series),
     delta:
       sevenDayDelta !== null
         ? {
-            direction: sevenDayDelta < 0 ? "down" : "up",
-            value: Math.abs(sevenDayDelta).toFixed(1),
+            deltaLb: sevenDayDelta,
             window: "7d",
             // Weight loss is typically the goal in this app's context; if
             // the user wants weight gain (cut/bulk cycles), this can grow
@@ -182,42 +194,19 @@ async function loadBodyComposition(): Promise<BodyCompositionView | null> {
             tone: sevenDayDelta <= 0 ? "good" : "alert",
           }
         : undefined,
-    sparkline: weightSparkline(series),
   };
 
   return {
-    primary: {
-      value: latestWeight.toFixed(1),
-      unit: "lb",
-      delta: deltaStr,
-    },
-    secondary: [
-      {
-        value: latestBodyFat ? latestBodyFat.value.toFixed(1) : "—",
-        unit: "% fat",
-        delta: null,
-      },
-      {
-        value: leanMassLb !== null ? leanMassLb.toFixed(1) : "—",
-        unit: "lb lean",
-        delta: null,
-      },
-    ],
+    primaryWeightLb: latestWeight,
+    primaryDeltaLb: delta,
+    bodyFatPercent: latestBodyFat ? latestBodyFat.value : null,
+    leanMassLb,
     series,
     yMin,
     yMax,
     xLabels,
-    weightVital,
+    weightStat,
   };
-}
-
-// Builds the 4-card stat row at the top of the dashboard. The Weight
-// card is computed from real backend data; the other three remain on
-// fixtures until we have data sources for them.
-function composeStatRow(weightVital: Vital | null): Vital[] {
-  const remaining = vitals.slice(1); // HRV / Resting HR / Readiness
-  const first = weightVital ?? vitals[0];
-  return first ? [first, ...remaining] : remaining;
 }
 
 // Render the weight series as a 48×20 polyline (the dimensions of
@@ -241,12 +230,6 @@ function weightSparkline(series: number[]): string {
       return `${x.toFixed(0)},${yPx.toFixed(0)}`;
     })
     .join(" ");
-}
-
-function formatDelta(delta: number, unit: string, suffix: string): string {
-  if (Math.abs(delta) < 0.05) return `unchanged ${suffix}`;
-  const arrow = delta < 0 ? "↓" : "↑";
-  return `${arrow} ${Math.abs(delta).toFixed(1)} ${unit} ${suffix}`;
 }
 
 function computeLeanMass(
@@ -368,33 +351,49 @@ function BodyCompositionCard({ view }: { view: BodyCompositionView | null }) {
           <div className="mt-3 flex items-baseline gap-[18px]">
             <div>
               <div className="font-mono text-[36px] font-medium leading-none tracking-[-0.03em] text-primary tabular">
-                {view.primary.value}
-                <span className="ml-1 text-[13px] font-normal text-tertiary">
-                  {view.primary.unit}
-                </span>
+                <WeightValue
+                  lb={view.primaryWeightLb}
+                  unitClassName="ml-1 text-[13px] font-normal text-tertiary"
+                />
               </div>
-              {view.primary.delta ? (
-                <div className="caps-mono mt-[5px] text-[10px] text-good">
-                  {view.primary.delta}
-                </div>
+              {view.primaryDeltaLb !== null ? (
+                <BodyCompositionPrimaryDelta
+                  deltaLb={view.primaryDeltaLb}
+                  suffix="vs 90d avg"
+                />
               ) : null}
             </div>
             <div className="h-[42px] w-px bg-border-default" aria-hidden />
-            {view.secondary.map((s, i) => (
-              <div key={`${s.unit}-${i}`}>
-                <div className="font-mono text-[18px] font-medium leading-none tracking-[-0.01em] text-primary tabular">
-                  {s.value}
-                  <span className="ml-[3px] text-[10px] font-normal text-tertiary">
-                    {s.unit}
-                  </span>
-                </div>
-                {s.delta ? (
-                  <div className="caps-mono mt-[5px] text-[10px] text-good">
-                    {s.delta}
-                  </div>
-                ) : null}
+            <div>
+              <div className="font-mono text-[18px] font-medium leading-none tracking-[-0.01em] text-primary tabular">
+                {view.bodyFatPercent !== null
+                  ? view.bodyFatPercent.toFixed(1)
+                  : "—"}
+                <span className="ml-[3px] text-[10px] font-normal text-tertiary">
+                  % fat
+                </span>
               </div>
-            ))}
+            </div>
+            <div>
+              <div className="font-mono text-[18px] font-medium leading-none tracking-[-0.01em] text-primary tabular">
+                {view.leanMassLb !== null ? (
+                  <WeightValue
+                    lb={view.leanMassLb}
+                    unitClassName="ml-[3px] text-[10px] font-normal text-tertiary"
+                  />
+                ) : (
+                  <>
+                    —
+                    <span className="ml-[3px] text-[10px] font-normal text-tertiary">
+                      lb
+                    </span>
+                  </>
+                )}
+                <span className="ml-[3px] text-[10px] font-normal text-tertiary">
+                  lean
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
