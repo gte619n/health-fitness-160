@@ -28,6 +28,9 @@ equipment from IMPL-AND-06) — programs live alongside gyms under the
 
 In scope:
 
+- **Workouts hub** at `workouts` — the Workouts destination becomes a hub with
+  two cards, **Gyms** (the existing IMPL-AND-06 list, rebased to
+  `workouts/gyms`) and **Programs**, mirroring the web Workouts area.
 - **Programs list** at a `workouts/programs` route — cards mirroring the web
   programs list: title, status pill, a compact **phase spine** (segment per
   phase, colored by `LOCKED`/`ACTIVE`/`COMPLETED`, deload weeks marked),
@@ -40,7 +43,8 @@ In scope:
   (warm-up, main, cardio, cool-down, stretch, …) and the **Exercise
   prescriptions** in each (sets × reps or duration, intensity, rest, tempo,
   notes, deload modifier). Each day shows its **gym** (`Location` name) and
-  day-of-week.
+  day-of-week. When the program is linked to a Goal, an **"Attached to goal:
+  {title}"** row deep-links into `feature-goals`.
 - **This week / schedule** — `GET /api/me/workout-programs/{id}/calendar?from=&to=`
   rendered as the upcoming `ScheduledWorkout`s (date, day label, gym, deload
   tint, status). V1 shows the current week; a full month calendar is a
@@ -79,7 +83,8 @@ Out of scope (explicitly deferred to `IMPL-AND-15b` / later):
 | Exercise rendering | **Backend embeds a compact `ExerciseSummary` on each prescription in the deep + calendar responses** (exerciseId, name, primaryMuscles, demoFrames thumbnail URLs, formCues, equipment names). One round trip; no per-exercise N+1 from the phone. This is a **small addition to IMPL-15** (see the amendment note in that spec), needed for web too. Fallback if not embedded: a batch `GET /api/exercises?ids=` consumed once per detail load. |
 | Demo media | Phase **stills** (IMPL-14) via Coil `AsyncImage`, shown as a 3-step pager/loop. No video in v1 (Veo deferred behind its own ADR). |
 | Nav routes | **String routes** appended to the existing `WorkoutsRoutes` object (the module's convention), with `programId` as a path arg read via `SavedStateHandle`. |
-| Entry point | Add a **"Programs"** entry to the Workouts area: a card/section at the top of the gyms list (`GymsListScreen`) **and** a "Workout Programs" entry in the phone **"More"** hub + foldable sidebar. (Final placement coordinated with the nav owner; both reach `WorkoutsRoutes.PROGRAMS`.) |
+| Entry point | The Workouts destination becomes a **hub**: tapping **Workouts** (bottom nav / "More" / sidebar) lands on a new `WorkoutsHubScreen` with two cards — **Gyms** and **Programs**. The gyms list moves down one level to `workouts/gyms`; programs live at `workouts/programs`. This reorganizes IMPL-AND-06's landing route (called out below). |
+| Goal linkage | **In scope.** When a program has a `goalId`, the detail screen shows an "Attached to goal: {title}" line that deep-links into `feature-goals`. Requires the deep response to carry the goal **title** (not just the id) — folded into the IMPL-15 embed note. |
 | Status display | All status (`PhaseStatus`, deload, behind-schedule, scheduled status) is **rendered from the backend** — no client computation, same stance as IMPL-AND-12's "Android only displays evaluated state." |
 | Date types | `startDate` / dates as `LocalDate` via the IMPL-AND-00 `LocalDateAdapter`; `Instant` for `createdAt`/`updatedAt`/`completedAt`. `DayOfWeek` reuses the lowercase-wire Moshi adapter from IMPL-AND-03/06. |
 | Theme | Filled `HfCard` for data cards (programs, days, blocks); `Hf.colors.accent` (olive) for active phase/spine; a muted/deload tint for deload weeks; `caps-mono` for day-of-week + date labels. Edge-to-edge insets + back affordance per `android/CLAUDE.md`. |
@@ -283,13 +288,17 @@ re-rolling them. ViewModels follow the `@HiltViewModel` + private
 
 ViewModels + screens (one `*Route`/`*Screen`/`*ViewModel` set per destination):
 
+- `WorkoutsHubScreen` — stateless two-card hub (Gyms → `WorkoutsRoutes.GYMS`,
+  Programs → `WorkoutsRoutes.PROGRAMS`). No ViewModel; pure navigation.
 - `ProgramsListViewModel` / `ProgramsListScreen` — shallow list; `ProgramCard`s;
   empty state "No programs yet" (with a hint that programs are created on the
   web in v1). Pull-to-refresh.
 - `ProgramDetailViewModel` / `ProgramDetailScreen` — deep load via
-  `SavedStateHandle` `programId`; phase timeline; expandable Workout Days;
-  blocks; prescription rows; a "This week" section backed by `calendar(...)`
-  for the current week. Tapping a prescription opens `ExerciseDetailSheet`.
+  `SavedStateHandle` `programId`; an **"Attached to goal: {title}"** row
+  (when `goalId` present) wired to `onOpenGoal`; phase timeline; expandable
+  Workout Days; blocks; prescription rows; a "This week" section backed by
+  `calendar(...)` for the current week. Tapping a prescription opens
+  `ExerciseDetailSheet`.
 
 Composables (under `feature.workouts.program.ui/`, styled with `Hf`/`HfCard`):
 
@@ -317,11 +326,22 @@ Composables (under `feature.workouts.program.ui/`, styled with `Hf`/`HfCard`):
   `ScheduledWorkout`s (date, day label, gym, deload tint, status dot).
 - `DeloadBadge`, `BehindScheduleBadge`.
 
-### Navigation — extend `WorkoutsRoutes`
+### Navigation — Workouts hub + extend `WorkoutsRoutes`
+
+The Workouts destination becomes a hub. `"workouts"` now renders
+`WorkoutsHubScreen` (two cards: Gyms, Programs); the gyms list moves to
+`"workouts/gyms"`. This is a small reorg of the IMPL-AND-06 route constants —
+all existing IMPL-AND-06 navigation references the `WorkoutsRoutes.GYMS`
+constant, so changing the constant's value (and adding the `HUB` route) is
+contained; `popUpTo(WorkoutsRoutes.GYMS)` and friends keep working.
 
 ```kotlin
 object WorkoutsRoutes {
-    // ...existing GYMS / NEW_GYM / DETAIL / EDIT...
+    const val HUB = "workouts"               // NEW — landing hub
+    const val GYMS = "workouts/gyms"         // CHANGED from "workouts"
+    const val NEW_GYM = "workouts/gyms/new"  // CHANGED to nest under gyms (optional, keep consistent)
+    // ...existing DETAIL / EDIT, rebased under workouts/gyms/{locationId}...
+
     const val PROGRAMS = "workouts/programs"
     const val ARG_PROGRAM_ID = "programId"
     const val PROGRAM_DETAIL = "workouts/programs/{programId}"
@@ -329,8 +349,15 @@ object WorkoutsRoutes {
 }
 
 // inside fun NavGraphBuilder.workoutsGraph(navController: NavHostController):
+composable(WorkoutsRoutes.HUB) {
+    WorkoutsHubScreen(
+        onBack = { navController.popBackStack() },
+        onOpenGyms = { navController.navigate(WorkoutsRoutes.GYMS) },
+        onOpenPrograms = { navController.navigate(WorkoutsRoutes.PROGRAMS) },
+    )
+}
 composable(WorkoutsRoutes.PROGRAMS) {
-    ProgramsListScreen(
+    ProgramsListRoute(
         onBack = { navController.popBackStack() },
         onOpenProgram = { id -> navController.navigate(WorkoutsRoutes.programDetail(id)) },
     )
@@ -339,23 +366,29 @@ composable(
     route = WorkoutsRoutes.PROGRAM_DETAIL,
     arguments = listOf(navArgument(WorkoutsRoutes.ARG_PROGRAM_ID) { type = NavType.StringType }),
 ) {
-    ProgramDetailScreen(onBack = { navController.popBackStack() })
+    ProgramDetailRoute(
+        onBack = { navController.popBackStack() },
+        onOpenGoal = { goalId -> navController.navigate(Routes.goalDetail(goalId)) },
+    )
 }
+// existing gyms-list composable rebinds to WorkoutsRoutes.GYMS ("workouts/gyms")
 ```
 
-Both pushed screens render a back affordance (header `Row` + `IconButton` or
-`Scaffold` `navigationIcon`) and apply system-bar insets, per `android/CLAUDE.md`.
+`WorkoutsHubScreen` is a plain two-card screen on `Hf.colors.canvas` with
+`HfScreenHeader(title = "Workouts", onBack = …)` and two `HfCard`s ("Gyms",
+"Programs"). All pushed screens render a back affordance and apply system-bar
+insets, per `android/CLAUDE.md`.
 
 ### `app/` changes
 
-- Add a **"Workout Programs"** entry to the phone **"More"** hub and the
-  foldable sidebar (icon e.g. `Icons.AutoMirrored.Filled.ListAlt` or
-  `Icons.Filled.CalendarMonth`), navigating to `WorkoutsRoutes.PROGRAMS`.
-- Add a **Programs** card/section at the top of `GymsListScreen` so the
-  Workouts area exposes both gyms and programs (mirrors the web Workouts hub).
-- No `NavHost` restructure: `workoutsGraph` already registered; only the two
-  new `composable` entries above are added. Hilt extends automatically via the
-  new `@Module`.
+- The phone **"More"** hub / bottom-nav / foldable-sidebar **"Workouts"** entry
+  now lands on `WorkoutsRoutes.HUB` (the hub) instead of the gyms list. No new
+  top-level nav item is added — Programs is reached through the hub.
+- `goalDetail(goalId)` is the existing `feature-goals` route used for the
+  "Attached to goal" deep link from the program detail.
+- No `NavHost` restructure: `workoutsGraph` already registered; the hub +
+  program composables are added inside it, and the gyms-list composable rebinds
+  to the new `GYMS` constant. Hilt extends automatically via the new `@Module`.
 
 ### Gradle wiring
 
@@ -418,19 +451,27 @@ Manual (real device, connected account, with a program created on the web):
 6. Airplane-mode on a cold open → `ErrorState` with retry; retry after
    reconnect loads the list.
 
-## Open questions (deferred to implementation)
+## Resolved decisions
 
-- **Exercise summary embedding vs batch fetch.** Preferred: backend embeds
-  `ExerciseSummary` (folded into IMPL-15). If that addition slips, ship the
-  batch `GET /api/exercises?ids=` fallback and swap later — the domain model's
-  `Prescription.exercise` field accommodates both.
-- **Workouts hub vs in-list entry.** Whether the Workouts destination becomes a
-  true hub (Gyms / Programs) or keeps the gyms list as the landing with a
-  Programs card — coordinate with the nav owner; routes are the same either way.
-- **Current-week computation.** The "This week" range is derived from the
-  device date; confirm the backend's `weekIndexInPhase` / `isDeload` are
-  authoritative so the client never recomputes deload status.
-- **Goal linkage display.** If a program has a `goalId`, show an "Attached to
-  goal" line linking into `feature-goals`; confirm the deep response carries a
-  goal title or just the id.
+- **Workouts entry — RESOLVED: hub.** The Workouts destination is a hub
+  (Gyms / Programs); the gyms list rebases to `workouts/gyms`. See
+  Navigation + `app/` changes.
+- **Standalone exercise library on phone — RESOLVED: no.** There is no
+  browsable Android exercise catalog in this effort; exercises surface only
+  in-context via the `ExerciseDetailSheet`. (No `IMPL-AND-14`.)
+- **Goal linkage — RESOLVED: in scope.** The program detail shows "Attached
+  to goal: {title}" deep-linking into `feature-goals` when `goalId` is set.
+  Requires the IMPL-15 deep response to carry the goal **title** (folded into
+  the embed note).
+- **Exercise summary — RESOLVED: embed.** The backend embeds `ExerciseSummary`
+  on the deep + calendar responses (folded into IMPL-15). The batch
+  `GET /api/exercises?ids=` is a documented fallback only; the model's
+  `Prescription.exercise` field accommodates either.
+
+## Open questions (to confirm during implementation)
+
+- **Current-week / deload authority — CONFIRM.** The "This week" range is
+  derived from the device date, but `weekIndexInPhase` / `isDeload` must come
+  from the backend `ScheduledWorkout` so the client never recomputes deload
+  status. Confirm these fields are authoritative once IMPL-15 is built.
 ```

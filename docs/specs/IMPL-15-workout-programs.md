@@ -228,6 +228,10 @@ it. The web Exercise detail sheet and the Android viewer
 (If a client predates this field, a batch `GET /api/exercises?ids=` is the
 fallback.)
 
+When the program is linked to a Goal, the deep response also carries the
+linked goal's **title** (`goalTitle`) next to `goalId`, so clients can render
+an "Attached to goal: {title}" link without a second fetch.
+
 ---
 
 ## The equipment constraint (the headline requirement)
